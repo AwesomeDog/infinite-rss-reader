@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6600;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E85500;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <style>
+    .bg { fill: url(#bgGradient); }
+    .icon-white { fill: #FFFFFF; }
+    .icon-stroke { fill: none; stroke: #FFFFFF; stroke-linecap: round; }
+  </style>
+  
+  <!-- Background -->
+  <rect class="bg" width="128" height="128" rx="16"/>
+  
+  <!-- RSS Symbol (Top - Larger) -->
+  <g transform="translate(8, 18)">
+    <!-- Bottom left circle -->
+    <circle class="icon-white" cx="30" cy="48" r="9"/>
+    
+    <!-- Inner arc -->
+    <path class="icon-stroke" d="M 30 20 A 28 28 0 0 1 58 48" stroke-width="7" fill="none"/>
+    
+    <!-- Outer arc -->
+    <path class="icon-stroke" d="M 30 0 A 48 48 0 0 1 78 48" stroke-width="7" fill="none"/>
+  </g>
+  
+  <!-- HTTP Text (Bottom - Smaller) -->
+  <text x="64" y="106" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#FFFFFF" text-anchor="middle" opacity="0.95">HTTP</text>
+</svg>

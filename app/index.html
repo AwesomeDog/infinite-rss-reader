@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Infinite RSS Reader</title>
+    <link rel="icon"
+          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='2' y='3' width='20' height='18' fill='%23fff' stroke='%23333' stroke-width='1.5' rx='1'/><rect x='4' y='5' width='16' height='3' fill='%23333'/><text x='12' y='7.5' font-family='Arial' font-size='2.5' font-weight='bold' text-anchor='middle' fill='%23fff'>NEWS</text><rect x='4' y='9' width='7' height='1' fill='%23333'/><rect x='13' y='9' width='7' height='1' fill='%23333'/><rect x='4' y='11' width='7' height='1' fill='%23333'/><rect x='13' y='11' width='7' height='1' fill='%23333'/><rect x='4' y='13' width='16' height='1' fill='%23333'/><rect x='4' y='15' width='16' height='1' fill='%23333'/><rect x='4' y='17' width='12' height='1' fill='%23333'/></svg>"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.28.4/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.18/dayjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/antd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css"/>
+    <style>
+        .stats-panel {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+        }
+
+        .rss-item {
+            margin-bottom: 24px;
+        }
+
+        .rss-item .ant-card-head-title {
+            white-space: normal !important;
+            word-wrap: break-word;
+        }
+
+        .rss-item .ant-card-body {
+            word-wrap: break-word;
+        }
+
+        .rss-item * {
+            max-width: 100%;
+            height: auto;
+            box-sizing: border-box;
+        }
+
+        .rss-item .ant-card {
+            transition: border-color 0.3s ease;
+        }
+
+        .rss-item .ant-card:hover {
+            border-color: #1677ff;
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+    const {useState, useEffect, useRef, useCallback} = React;
+    const {
+        Layout, Divider, List, Card, Typography, Spin, Tag, Button, ConfigProvider,
+        theme, Statistic, FloatButton, message, Tooltip, Switch
+    } = antd;
+    const {Content} = Layout;
+    const {Text} = Typography;
+
+    const useDarkMode = () => {
+        const [themeMode, setThemeMode] = useState(() => localStorage.getItem("themeMode") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+        useEffect(() => localStorage.setItem("themeMode", themeMode), [themeMode]);
+        return {themeMode, toggleTheme: () => setThemeMode((m) => (m === "light" ? "dark" : "light"))};
+    };
+
+    const useScreenshotMode = () => {
+        const [screenshotMode, setScreenshotMode] = useState(() => localStorage.getItem("screenshotMode") !== "false");
+        useEffect(() => localStorage.setItem("screenshotMode", screenshotMode), [screenshotMode]);
+        return {screenshotMode, toggleScreenshotMode: () => setScreenshotMode((m) => !m)};
+    };
+
+    const fetchUnreadItems = async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [];
+    const markItemAsRead = (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error);
+
+    const StatsPanel = (
+        {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode}) => (
+        <Card className="stats-panel" size="small" title="Statistics"
+              headStyle={{textAlign: "center"}} bodyStyle={{textAlign: "center"}}>
+            <Spin spinning={loading}>
+                <Statistic title="Total" value={total}/>
+                <Statistic title="Loaded" value={displayed}/>
+                <Tooltip title="Items skipped during fast scrolling are not counted as read">
+                    <div><Statistic title="Read" value={read}/></div>
+                </Tooltip>
+            </Spin>
+            <Divider/>
+            <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                <Tooltip title={themeMode === "light" ? "Light Theme" : "Dark Theme"}>
+                    <Switch style={{width: "100%"}} size="small" checkedChildren="☀️" unCheckedChildren="🌙"
+                            checked={themeMode === "light"} onChange={toggleTheme}/>
+                </Tooltip>
+                <Tooltip title={screenshotMode ? "Screenshot Full Card" : "Screenshot Body Only"}>
+                    <Switch style={{width: "100%"}} size="small" checkedChildren="📸 Full" unCheckedChildren="📸 Body"
+                            checked={screenshotMode} onChange={toggleScreenshotMode}/>
+                </Tooltip>
+            </div>
+        </Card>
+    );
+
+    const sanitizeHtml = (html) => {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        doc.querySelectorAll('base,script,iframe,object,embed,form,input,button,link[rel="stylesheet"]').forEach((n) => n.remove());
+        doc.querySelectorAll("*").forEach((el) => {
+            [...el.attributes].forEach((attr) => {
+                const name = attr.name.toLowerCase(), val = attr.value.toLowerCase();
+                if (name.startsWith("on") || ((name === "href" || name === "src") && (val.startsWith("javascript:") || val.startsWith("data:")))) el.removeAttribute(name);
+            });
+        });
+        return doc.body.innerHTML;
+    };
+
+    const RssItem = ({item, onBecameVisible, screenshotMode}) => {
+        const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
+        useEffect(() => {
+            const observer = new IntersectionObserver(([entry]) => {
+                if (entry.isIntersecting) wasVisible.current = true;
+                else if (wasVisible.current && entry.boundingClientRect.bottom < 0) {
+                    onBecameVisible(item.id);
+                    observer.disconnect();
+                }
+            }, {threshold: 0});
+            itemRef.current && observer.observe(itemRef.current);
+            return () => observer.disconnect();
+        }, [item.id, onBecameVisible]);
+
+        const handleScreenshot = async () => {
+            const target = screenshotMode ? itemRef.current : contentRef.current;
+            if (!target) return message.error("No content to screenshot.");
+            try {
+                const card = itemRef.current?.querySelector(".ant-card");
+                const canvas = await html2canvas(target, {
+                    useCORS: true,
+                    backgroundColor: card ? getComputedStyle(card).backgroundColor : null
+                });
+                const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+                blob ? (await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]), message.success("Screenshot copied!")) : message.error("Failed.");
+            } catch (e) {
+                message.error("Screenshot failed.");
+            }
+        };
+
+        const sanitizedBody = item.body ? sanitizeHtml(item.body) : "";
+        return (
+            <div ref={itemRef} className="rss-item">
+                <Card title={item.subject || "No Title"}
+                      extra={<Button type="text" icon="📸" onClick={handleScreenshot}/>}>
+                    <div style={{marginTop: -16, marginBottom: 16}}>
+                        {item.link && <a href={item.link} target="_blank" style={{marginRight: 8}}>🔍</a>}
+                        {item.folderPath && <Tag color="blue" style={{marginRight: 8}}>{item.folderPath}</Tag>}
+                        {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
+                        {item.date && <Text type="secondary">{new Date(item.date).toLocaleString()}</Text>}
+                    </div>
+                    {sanitizedBody && <div ref={contentRef} dangerouslySetInnerHTML={{__html: sanitizedBody}}/>}
+                </Card>
+            </div>
+        );
+    };
+
+    const App = () => {
+        const {themeMode, toggleTheme} = useDarkMode();
+        const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
+        const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
+        const [loading, setLoading] = useState(true), [page, setPage] = useState(1), observer = useRef(),
+            PAGE_SIZE = 100;
+
+        useEffect(() => {
+            (async () => {
+                setLoading(true);
+                try {
+                    const items = await fetchUnreadItems();
+                    setAllItems(items);
+                    setDisplayedItems(items.slice(0, PAGE_SIZE));
+                } finally {
+                    setLoading(false);
+                }
+            })();
+        }, []);
+
+        const lastItemRef = useCallback((node) => {
+            if (loading) return;
+            if (observer.current) observer.current.disconnect();
+            observer.current = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && displayedItems.length < allItems.length) setPage((p) => p + 1);
+            }, {rootMargin: "2000px"});
+            node && observer.current.observe(node);
+        }, [loading, displayedItems.length, allItems.length]);
+
+        useEffect(() => {
+            page > 1 && setDisplayedItems(allItems.slice(0, page * PAGE_SIZE));
+        }, [page, allItems]);
+
+        const handleBecameVisible = useCallback((itemId) => {
+            if (!readItems.has(itemId)) {
+                setReadItems((prev) => new Set(prev).add(itemId));
+                markItemAsRead(itemId);
+            }
+        }, [readItems]);
+
+        const isDarkMode = themeMode === "dark";
+        useEffect(() => {
+            document.body.style.backgroundColor = isDarkMode ? "#141414" : "#fff";
+            document.body.style.color = isDarkMode ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.88)";
+        }, [isDarkMode]);
+
+        return (
+            <ConfigProvider theme={{
+                algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
+                token: {fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"}
+            }}>
+                <Layout style={{minHeight: "100vh", background: "transparent"}}>
+                    <Content style={{padding: "0 25%", margin: "24px 0"}}>
+                        <StatsPanel total={allItems.length} read={readItems.size} displayed={displayedItems.length}
+                                    loading={loading && !displayedItems.length}
+                                    themeMode={themeMode} toggleTheme={toggleTheme}
+                                    screenshotMode={screenshotMode} toggleScreenshotMode={toggleScreenshotMode}/>
+                        <List rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
+                            item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}/>}/>
+                        <div ref={lastItemRef} style={{height: 20, marginBottom: 20}}/>
+                        {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
+                        {displayedItems.length > 0 && displayedItems.length === allItems.length &&
+                            <div style={{textAlign: "center", margin: "20px 0"}}><Text type="secondary">All items
+                                loaded.</Text></div>}
+                    </Content>
+                </Layout>
+                <FloatButton.BackTop/>
+            </ConfigProvider>
+        );
+    };
+
+    ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>

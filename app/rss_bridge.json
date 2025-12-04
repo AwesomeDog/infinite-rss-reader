@@ -1,0 +1,9 @@
+{
+  "name": "rss_bridge",
+  "description": "Expose Thunderbird RSS via HTTP API",
+  "path": "YOUR_PROJECT_PATH/app/rss_bridge.py",
+  "type": "stdio",
+  "allowed_extensions": [
+    "rss_bridge@example.org"
+  ]
+}
