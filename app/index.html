@@ -42,11 +42,24 @@
         }
 
         .rss-item .ant-card {
-            transition: border-color 0.3s ease;
+            transition: all 0.3s ease;
+        }
+
+        .rss-item.unread .ant-card {
+            border-color: #696FC7;
+            box-shadow: 0 2px 8px #A7AAE1;
+            border-radius: 8px;
+        }
+
+        .rss-item.read .ant-card {
+            border-style: dashed;
+            border-color: #d9d9d9;
+            box-shadow: none;
         }
 
         .rss-item .ant-card:hover {
-            border-color: #1677ff;
+            border-color: #fa8c16 !important;
+            box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3) !important;
         }
     </style>
 </head>
@@ -113,7 +126,7 @@
         return doc.body.innerHTML;
     };
 
-    const RssItem = ({item, onBecameVisible, screenshotMode}) => {
+    const RssItem = ({item, onBecameVisible, screenshotMode, isRead}) => {
         const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
         useEffect(() => {
             const observer = new IntersectionObserver(([entry]) => {
@@ -145,7 +158,7 @@
 
         const sanitizedBody = item.body ? sanitizeHtml(item.body) : "";
         return (
-            <div ref={itemRef} className="rss-item">
+            <div ref={itemRef} className={`rss-item ${isRead ? "read" : "unread"}`}>
                 <Card title={item.subject || "No Title"}
                       extra={<Button type="text" icon="📸" onClick={handleScreenshot}/>}>
                     <div style={{marginTop: -16, marginBottom: 16}}>
@@ -218,7 +231,8 @@
                                     themeMode={themeMode} toggleTheme={toggleTheme}
                                     screenshotMode={screenshotMode} toggleScreenshotMode={toggleScreenshotMode}/>
                         <List rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
-                            item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}/>}/>
+                            item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
+                            isRead={readItems.has(item.id)}/>}/>
                         <div ref={lastItemRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
                         {displayedItems.length > 0 && displayedItems.length === allItems.length &&
