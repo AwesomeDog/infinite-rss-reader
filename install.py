@@ -15,7 +15,7 @@ def get_tb_paths():
     elif sys.platform == 'darwin':
         # macOS: Thunderbird uses its own NativeMessagingHosts directory
         home = Path.home()
-        return home / "Library/Application Support/Thunderbird/NativeMessagingHosts", home / "Library/Thunderbird/Profiles"
+        return home / "Library/Mozilla/NativeMessagingHosts", home / "Library/Thunderbird/Profiles"
 
     # Linux: Snap installation (Ubuntu default)
     home = Path.home()
