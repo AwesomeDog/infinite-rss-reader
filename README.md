@@ -8,7 +8,7 @@ While technically a Thunderbird extension, the primary goal of this project is t
 - ⚡ **Lightning Fast**: Pre-fetches content and renders instantly.
 - 🌗 **Dark Mode**: Auto-detects your system theme for comfortable night reading.
 - 📸 **Visual-First**: Optimized layout for media-rich feeds with one-click screenshots.
-- ✅ **Auto-Mark as Read**: Items are automatically marked as read as you scroll past them.
+- ✅ **Auto-Mark as Read**: Items are automatically marked as read with visual distinction as you scroll past them.
 
 ## Table of Contents
 
