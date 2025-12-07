@@ -61,6 +61,34 @@
             border-color: #fa8c16 !important;
             box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3) !important;
         }
+
+        .main-content {
+            padding: 0 25%;
+            margin: 24px 0;
+        }
+
+        .stats-toggle-btn {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 0 16px;
+            }
+
+            .stats-toggle-btn {
+                display: block;
+            }
+
+            .stats-panel {
+                display: none;
+            }
+
+            .stats-panel.visible {
+                display: block;
+            }
+
+        }
     </style>
 </head>
 <body>
@@ -90,8 +118,8 @@
     const markItemAsRead = (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error);
 
     const StatsPanel = (
-        {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode}) => (
-        <Card className="stats-panel" size="small" title="Statistics"
+        {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, showStats}) => (
+        <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
               headStyle={{textAlign: "center"}} bodyStyle={{textAlign: "center"}}>
             <Spin spinning={loading}>
                 <Statistic title="Total" value={total}/>
@@ -176,6 +204,7 @@
     const App = () => {
         const {themeMode, toggleTheme} = useDarkMode();
         const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
+        const [showStats, setShowStats] = useState(false);
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
         const [loading, setLoading] = useState(true), [page, setPage] = useState(1), observer = useRef(),
             PAGE_SIZE = 100;
@@ -225,11 +254,11 @@
                 token: {fontFamily: "'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"}
             }}>
                 <Layout style={{minHeight: "100vh", background: "transparent"}}>
-                    <Content style={{padding: "0 25%", margin: "24px 0"}}>
+                    <Content className="main-content">
                         <StatsPanel total={allItems.length} read={readItems.size} displayed={displayedItems.length}
-                                    loading={loading && !displayedItems.length}
-                                    themeMode={themeMode} toggleTheme={toggleTheme}
-                                    screenshotMode={screenshotMode} toggleScreenshotMode={toggleScreenshotMode}/>
+                                    loading={loading && !displayedItems.length} themeMode={themeMode}
+                                    toggleTheme={toggleTheme} screenshotMode={screenshotMode}
+                                    toggleScreenshotMode={toggleScreenshotMode} showStats={showStats}/>
                         <List rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             isRead={readItems.has(item.id)}/>}/>
@@ -240,7 +269,9 @@
                                 loaded.</Text></div>}
                     </Content>
                 </Layout>
-                <FloatButton.BackTop/>
+                <FloatButton icon="⚙️" className="stats-toggle-btn" style={{right: 24, bottom: 84}}
+                             onClick={() => setShowStats(!showStats)}/>
+                <FloatButton.BackTop style={{right: 24, bottom: 24}}/>
             </ConfigProvider>
         );
     };

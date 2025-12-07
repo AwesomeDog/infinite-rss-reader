@@ -34,8 +34,10 @@ This tool bridges the gap between Thunderbird's robust RSS management and modern
 - **Infinite Scrolling Stream**: No more clicking "Next" or opening individual item. Just scroll.
 - **Syncs with Thunderbird**: Actions are two-way. Scrolling past an item in the browser marks it as read in Thunderbird.
 - **Distraction-Free UI**: Clean, responsive interface built with React and Ant Design.
+- **Mobile Optimized**: Fully adaptive design ensuring a smooth reading experience on mobile phones and tablets.
+- **Multi-Device Ready**: Host on your PC and access via your local network IP to read seamlessly on any device in your home.
 - **Security First**: 
-    - Runs entirely on `localhost`.
+    - Runs locally on your machine.
     - No external servers. 
     - Sanitizes HTML to prevent XSS.
 - **Cross-Platform**: Works on Windows, macOS, and Linux.
