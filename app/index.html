@@ -97,7 +97,7 @@
     const {useState, useEffect, useRef, useCallback} = React;
     const {
         Layout, Divider, List, Card, Typography, Spin, Tag, Button, ConfigProvider,
-        theme, Statistic, FloatButton, message, Tooltip, Switch
+        theme, Statistic, FloatButton, message, Tooltip, Switch, Space
     } = antd;
     const {Content} = Layout;
     const {Text} = Typography;
@@ -156,6 +156,8 @@
 
     const RssItem = ({item, onBecameVisible, screenshotMode, isRead}) => {
         const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
+        const [minimized, setMinimized] = useState(false);
+
         useEffect(() => {
             const observer = new IntersectionObserver(([entry]) => {
                 if (entry.isIntersecting) wasVisible.current = true;
@@ -187,10 +189,22 @@
         const sanitizedBody = item.body ? sanitizeHtml(item.body) : "";
         return (
             <div ref={itemRef} className={`rss-item ${isRead ? "read" : "unread"}`}>
-                <Card title={item.subject || "No Title"}
-                      extra={<Button type="text" icon="📸" onClick={handleScreenshot}/>}>
+                <Card 
+                    title={item.subject || "No Title"}
+                    bodyStyle={{ display: minimized ? 'none' : 'block' }}
+                    extra={
+                        <Space>
+                            <Tooltip title={minimized ? "Maximize" : "Minimize"}>
+                                <Button type="text" icon={minimized ? "➕" : "➖"} onClick={() => setMinimized(!minimized)} />
+                            </Tooltip>
+                            <Tooltip title="Take Screenshot">
+                                <Button type="text" icon="📸" onClick={handleScreenshot}/>
+                            </Tooltip>
+                        </Space>
+                    }
+                >
                     <div style={{marginTop: -16, marginBottom: 16}}>
-                        {item.link && <a href={item.link} target="_blank" style={{marginRight: 8}}>🔍</a>}
+                        {item.link && <Tooltip title="View Source"><a href={item.link} target="_blank" style={{marginRight: 8}}>🔍</a></Tooltip>}
                         {item.folderPath && <Tag color="blue" style={{marginRight: 8}}>{item.folderPath}</Tag>}
                         {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
                         {item.date && <Text type="secondary">{new Date(item.date).toLocaleString()}</Text>}
