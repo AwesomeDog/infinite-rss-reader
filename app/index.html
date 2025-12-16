@@ -14,6 +14,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css"/>
     <style>
+        .main-content {
+            padding: 0 25%;
+            margin: 24px 0;
+        }
+
         .stats-panel {
             position: fixed;
             left: 20px;
@@ -22,17 +27,12 @@
             z-index: 1000;
         }
 
+        .stats-toggle-btn {
+            display: none;
+        }
+
         .rss-item {
             margin-bottom: 24px;
-        }
-
-        .rss-item .ant-card-head-title {
-            white-space: normal !important;
-            word-wrap: break-word;
-        }
-
-        .rss-item .ant-card-body {
-            word-wrap: break-word;
         }
 
         .rss-item * {
@@ -62,13 +62,30 @@
             box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3) !important;
         }
 
-        .main-content {
-            padding: 0 25%;
-            margin: 24px 0;
+        .rss-item .ant-card-head-title {
+            white-space: normal !important;
+            word-wrap: break-word;
         }
 
-        .stats-toggle-btn {
-            display: none;
+        .rss-item .ant-card-body {
+            word-wrap: break-word;
+        }
+
+        .rss-item-content {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .rss-item-content table {
+            max-width: none;
+            border-collapse: collapse;
+        }
+
+        .rss-item-content table,
+        .rss-item-content th,
+        .rss-item-content td {
+            word-break: break-word;
         }
 
         @media (max-width: 768px) {
@@ -76,15 +93,15 @@
                 padding: 0 16px;
             }
 
-            .stats-toggle-btn {
-                display: block;
-            }
-
             .stats-panel {
                 display: none;
             }
 
             .stats-panel.visible {
+                display: block;
+            }
+
+            .stats-toggle-btn {
                 display: block;
             }
 
@@ -209,7 +226,7 @@
                         {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
                         {item.date && <Text type="secondary">{new Date(item.date).toLocaleString()}</Text>}
                     </div>
-                    {sanitizedBody && <div ref={contentRef} dangerouslySetInnerHTML={{__html: sanitizedBody}}/>}
+                    {sanitizedBody && <div ref={contentRef} className="rss-item-content" dangerouslySetInnerHTML={{__html: sanitizedBody}}/>}
                 </Card>
             </div>
         );
