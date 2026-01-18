@@ -106,6 +106,35 @@
             }
 
         }
+
+        @media (min-width: 1400px) {
+            .main-content {
+                padding: 0 10%;
+                overflow-x: hidden;
+            }
+
+            .rss-list-container .ant-list-items {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 24px;
+            }
+
+            .rss-list-container .rss-item {
+                margin-bottom: 0;
+                min-width: 0;
+                overflow: hidden;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            .main-content {
+                padding: 0 5%;
+            }
+
+            .rss-list-container .ant-list-items {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
     </style>
 </head>
 <body>
@@ -290,7 +319,7 @@
                                     loading={loading && !displayedItems.length} themeMode={themeMode}
                                     toggleTheme={toggleTheme} screenshotMode={screenshotMode}
                                     toggleScreenshotMode={toggleScreenshotMode} showStats={showStats}/>
-                        <List rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
+                        <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             isRead={readItems.has(item.id)}/>}/>
                         <div ref={lastItemRef} style={{height: 20, marginBottom: 20}}/>
