@@ -130,13 +130,19 @@
             }
         }
 
-        @media (min-width: 1920px) {
+        @media (min-width: 1700px) {
+            .rss-list-container .ant-list-items {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (min-width: 2000px) {
             .main-content {
                 padding: 0 5%;
             }
 
             .rss-list-container .ant-list-items {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
             }
         }
     </style>
