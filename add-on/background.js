@@ -82,15 +82,14 @@ function buildUnreadItem(message, fullMessage, account) {
 /*
 Process message list pagination
 */
-async function processMessagePage(folder, account) {
-    const unreadItems = [];
+async function processMessagePage(folder, account, unreadOnly = true) {
+    const items = [];
     try {
         let page = await browser.messages.list(folder.id);
         while (page) {
-            // Optimize: Fetch full messages in parallel batches
-            const unreadMessages = page.messages.filter((m) => !m.read);
+            const messages = unreadOnly ? page.messages.filter((m) => !m.read) : page.messages;
 
-            const batchPromises = unreadMessages.map(async (message) => {
+            const batchPromises = messages.map(async (message) => {
                 try {
                     const fullMessage = await browser.messages.getFull(message.id);
                     return buildUnreadItem(message, fullMessage, account);
@@ -100,21 +99,23 @@ async function processMessagePage(folder, account) {
                 }
             });
 
-            const items = await Promise.all(batchPromises);
-            unreadItems.push(...items.filter((i) => i !== null));
+            const batchItems = await Promise.all(batchPromises);
+            items.push(...batchItems.filter((i) => i !== null));
 
             page = page.id ? await browser.messages.continueList(page.id) : null;
         }
     } catch (e) {
         console.error(`Error listing messages for folder ${folder.name}:`, e);
     }
-    return unreadItems;
+    return items;
 }
 
 /*
 Recursively process folders
 */
-async function processFolders(folders, account, unreadItems) {
+async function processFolders(folders, account, items, options = {}) {
+    const {unreadOnly = true, targetFolderPath = null} = options;
+
     for (const folderRef of folders) {
         let folder;
         try {
@@ -124,18 +125,20 @@ async function processFolders(folders, account, unreadItems) {
             continue;
         }
 
-        // Skip Trash folder
-        if (folder.type === "trash") {
-            continue;
-        }
+        if (folder.type === "trash") continue;
 
-        // Process folder messages
-        const items = await processMessagePage(folder, account);
-        unreadItems.push(...items);
+        // If targetFolderPath specified, only process matching folders
+        const folderPath = folder.path || folder.name;
+        const shouldProcess = !targetFolderPath || folderPath.startsWith(targetFolderPath);
+
+        if (shouldProcess) {
+            const folderItems = await processMessagePage(folder, account, unreadOnly);
+            items.push(...folderItems);
+        }
 
         // Recurse into subfolders
         if (folder.subFolders && folder.subFolders.length > 0) {
-            await processFolders(folder.subFolders, account, unreadItems);
+            await processFolders(folder.subFolders, account, items, options);
         }
     }
 }
@@ -161,6 +164,57 @@ async function getUnreadRSSItems() {
     }
 }
 
+/*
+Get a single RSS item by ID (regardless of read status)
+*/
+async function getSingleItem(itemId) {
+    try {
+        const numericId = parseInt(itemId, 10);
+        if (isNaN(numericId)) return null;
+
+        const message = await browser.messages.get(numericId);
+        if (!message) return null;
+
+        const fullMessage = await browser.messages.getFull(numericId);
+        const accounts = await browser.accounts.list();
+        const account = accounts.find((a) => a.id === message.folder.accountId) || {name: "", type: ""};
+
+        return buildUnreadItem(message, fullMessage, account);
+    } catch (error) {
+        console.error(`Error getting single item ${itemId}:`, error);
+        return null;
+    }
+}
+
+/*
+Get all RSS items in a folder and its subfolders (including read items)
+*/
+async function getFolderItems(targetFolderPath) {
+    try {
+        console.log(`Fetching items for folder: ${targetFolderPath}`);
+        const accounts = await browser.accounts.list();
+        const rssAccounts = accounts.filter((a) => a.type === "rss");
+        const allItems = [];
+
+        for (const account of rssAccounts) {
+            if (account.folders) {
+                await processFolders(account.folders, account, allItems, {
+                    unreadOnly: false,
+                    targetFolderPath
+                });
+            }
+        }
+
+        // Sort by date descending (newest first)
+        allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+        console.log(`Found ${allItems.length} items in folder ${targetFolderPath}`);
+        return allItems;
+    } catch (error) {
+        console.error(`Error fetching folder items for ${targetFolderPath}:`, error);
+        return [];
+    }
+}
+
 async function markItemAsRead(itemId) {
     try {
         const numericId = parseInt(itemId, 10);
@@ -179,6 +233,20 @@ async function handleMessage(message) {
         if (message.action === "getUnreadRSS") {
             let items = await getUnreadRSSItems();
             port.postMessage({type: "rssData", data: items});
+        } else if (message.action === "getSingleItem") {
+            let item = await getSingleItem(message.itemId);
+            port.postMessage({
+                type: "singleItemData",
+                data: item,
+                itemId: message.itemId,
+            });
+        } else if (message.action === "getFolderItems") {
+            let items = await getFolderItems(message.folderPath);
+            port.postMessage({
+                type: "folderData",
+                data: items,
+                folderPath: message.folderPath,
+            });
         } else if (message.action === "markAsRead") {
             let success = await markItemAsRead(message.itemId);
             port.postMessage({

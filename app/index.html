@@ -62,6 +62,10 @@
             box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3) !important;
         }
 
+        .date-link:hover {
+            opacity: 0.7;
+        }
+
         .rss-item .ant-card-head-title {
             white-space: normal !important;
             word-wrap: break-word;
@@ -161,7 +165,26 @@
     };
 
     const fetchUnreadItems = async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [];
+    const fetchSingleItem = async (itemId) => (await fetch(`/api/rss/item?itemId=${itemId}`).then((r) => r.json())).data || null;
+    const fetchFolderItems = async (folder) => (await fetch(`/api/rss/folder?folder=${encodeURIComponent(folder)}`).then((r) => r.json())).data || [];
     const markItemAsRead = (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error);
+
+    // Parse URL parameters
+    const getUrlParams = () => {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            itemId: params.get('itemId'),
+            folder: params.get('folder')
+        };
+    };
+
+    // Get page mode based on URL params
+    const getPageMode = () => {
+        const {itemId, folder} = getUrlParams();
+        if (itemId) return 'single';
+        if (folder) return 'folder';
+        return 'default';
+    };
 
     const StatsPanel = (
         {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, showStats}) => (
@@ -232,6 +255,17 @@
             }
         };
 
+        const handleDateClick = (e) => {
+            e.preventDefault();
+            window.open(`/?itemId=${item.id}`, '_blank');
+        };
+
+        const handleFolderClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(`/?folder=${encodeURIComponent(item.folderPath)}`, '_blank');
+        };
+
         const sanitizedBody = item.body ? sanitizeHtml(item.body) : "";
         return (
             <div ref={itemRef} className={`rss-item ${isRead ? "read" : "unread"}`}>
@@ -251,9 +285,9 @@
                 >
                     <div style={{marginTop: -16, marginBottom: 16}}>
                         {item.link && <Tooltip title="View Source"><a href={item.link} target="_blank" style={{marginRight: 8}}>🔍</a></Tooltip>}
-                        {item.folderPath && <Tag color="blue" style={{marginRight: 8}}>{item.folderPath}</Tag>}
+                        {item.folderPath && <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}} onClick={handleFolderClick}>{item.folderPath}</Tag>}
                         {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
-                        {item.date && <Text type="secondary">{new Date(item.date).toLocaleString()}</Text>}
+                        {item.date && <Text type="secondary" style={{cursor: 'pointer'}} className="date-link" onClick={handleDateClick}>{new Date(item.date).toLocaleString()}</Text>}
                     </div>
                     {sanitizedBody && <div ref={contentRef} className="rss-item-content" dangerouslySetInnerHTML={{__html: sanitizedBody}}/>}
                 </Card>
@@ -268,12 +302,23 @@
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
         const [loading, setLoading] = useState(true), [page, setPage] = useState(1), observer = useRef(),
             PAGE_SIZE = 100;
+        
+        const pageMode = getPageMode();
+        const urlParams = getUrlParams();
 
         useEffect(() => {
             (async () => {
                 setLoading(true);
                 try {
-                    const items = await fetchUnreadItems();
+                    let items = [];
+                    if (pageMode === 'single' && urlParams.itemId) {
+                        const item = await fetchSingleItem(urlParams.itemId);
+                        items = item ? [item] : [];
+                    } else if (pageMode === 'folder' && urlParams.folder) {
+                        items = await fetchFolderItems(urlParams.folder);
+                    } else {
+                        items = await fetchUnreadItems();
+                    }
                     setAllItems(items);
                     setDisplayedItems(items.slice(0, PAGE_SIZE));
                 } finally {
