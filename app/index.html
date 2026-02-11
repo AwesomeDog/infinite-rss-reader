@@ -180,14 +180,16 @@
         const params = new URLSearchParams(window.location.search);
         return {
             itemId: params.get('itemId'),
-            folder: params.get('folder')
+            folder: params.get('folder'),
+            unread: params.get('unread') === 'true'
         };
     };
 
     // Get page mode based on URL params
     const getPageMode = () => {
-        const {itemId, folder} = getUrlParams();
+        const {itemId, folder, unread} = getUrlParams();
         if (itemId) return 'single';
+        if (folder && unread) return 'folder-unread';
         if (folder) return 'folder';
         return 'default';
     };
@@ -320,6 +322,12 @@
                     if (pageMode === 'single' && urlParams.itemId) {
                         const item = await fetchSingleItem(urlParams.itemId);
                         items = item ? [item] : [];
+                    } else if (pageMode === 'folder-unread' && urlParams.folder) {
+                        const allUnread = await fetchUnreadItems();
+                        items = allUnread.filter(item => 
+                            item.folderPath === urlParams.folder || 
+                            item.folderPath.startsWith(urlParams.folder)
+                        );
                     } else if (pageMode === 'folder' && urlParams.folder) {
                         items = await fetchFolderItems(urlParams.folder);
                     } else {
