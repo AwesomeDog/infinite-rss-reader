@@ -150,11 +150,12 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-    const {useState, useEffect, useRef, useCallback} = React;
+    const {useState, useEffect, useRef, useCallback, useMemo} = React;
     const {
         Layout, Divider, List, Card, Typography, Spin, Tag, Button, ConfigProvider,
-        theme, Statistic, FloatButton, message, Tooltip, Switch, Space
+        theme, Statistic, FloatButton, message, Tooltip, Switch, Space, Modal, Tree
     } = antd;
+    const {DirectoryTree} = Tree;
     const {Content} = Layout;
     const {Text} = Typography;
 
@@ -194,8 +195,71 @@
         return 'default';
     };
 
+    // Build folder tree from items
+    const buildFolderTree = (items) => {
+        const folders = new Set();
+        items.forEach(item => {
+            if (item.folderPath) folders.add(item.folderPath);
+        });
+        
+        const tree = {};
+        folders.forEach(path => {
+            const parts = path.split('/').filter(Boolean);
+            let current = tree;
+            let accumulatedPath = '';
+            parts.forEach((part) => {
+                accumulatedPath += '/' + part;
+                if (!current[part]) current[part] = { children: {}, fullPath: accumulatedPath };
+                current = current[part].children;
+            });
+        });
+        
+        const toTreeData = (obj, parentKey = '') => {
+            return Object.entries(obj).map(([name, data]) => {
+                const key = data.fullPath || name;
+                const children = toTreeData(data.children, key);
+                return {
+                    title: name,
+                    key: key,
+                    fullPath: data.fullPath,
+                    children: children.length ? children : undefined
+                };
+            });
+        };
+        
+        return toTreeData(tree);
+    };
+
+    const FolderTreeModal = ({ visible, onClose, treeData }) => {
+        const handleSelect = (selectedKeys, { node }) => {
+            if (node.fullPath) {
+                window.open(`/?folder=${encodeURIComponent(node.fullPath)}&unread=true`, '_blank');
+            }
+        };
+        
+        return (
+            <Modal
+                title="📁 Folder Navigation"
+                open={visible}
+                onCancel={onClose}
+                footer={null}
+            >
+                {treeData.length > 0 ? (
+                    <DirectoryTree
+                        defaultExpandAll
+                        treeData={treeData}
+                        onSelect={handleSelect}
+                        style={{ overflow: 'auto' }}
+                    />
+                ) : (
+                    <Text type="secondary">No folder data available</Text>
+                )}
+            </Modal>
+        );
+    };
+
     const StatsPanel = (
-        {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, showStats}) => (
+        {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, showStats, setShowFolderModal}) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
               headStyle={{textAlign: "center"}} bodyStyle={{textAlign: "center"}}>
             <Spin spinning={loading}>
@@ -214,6 +278,9 @@
                 <Tooltip title={screenshotMode ? "Screenshot Full Card" : "Screenshot Body Only"}>
                     <Switch style={{width: "100%"}} size="small" checkedChildren="📸 Full" unCheckedChildren="📸 Body"
                             checked={screenshotMode} onChange={toggleScreenshotMode}/>
+                </Tooltip>
+                <Tooltip title="Browse Folders">
+                    <Button size="small" onClick={() => setShowFolderModal(true)} style={{width: "100%"}}>📁 Folders</Button>
                 </Tooltip>
             </div>
         </Card>
@@ -307,12 +374,15 @@
         const {themeMode, toggleTheme} = useDarkMode();
         const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
         const [showStats, setShowStats] = useState(false);
+        const [showFolderModal, setShowFolderModal] = useState(false);
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
         const [loading, setLoading] = useState(true), [page, setPage] = useState(1), observer = useRef(),
             PAGE_SIZE = 100;
         
         const pageMode = getPageMode();
         const urlParams = getUrlParams();
+        
+        const folderTreeData = useMemo(() => buildFolderTree(allItems), [allItems]);
 
         useEffect(() => {
             (async () => {
@@ -377,7 +447,9 @@
                         <StatsPanel total={allItems.length} read={readItems.size} displayed={displayedItems.length}
                                     loading={loading && !displayedItems.length} themeMode={themeMode}
                                     toggleTheme={toggleTheme} screenshotMode={screenshotMode}
-                                    toggleScreenshotMode={toggleScreenshotMode} showStats={showStats}/>
+                                    toggleScreenshotMode={toggleScreenshotMode} showStats={showStats}
+                                    setShowFolderModal={setShowFolderModal}/>
+                        <FolderTreeModal visible={showFolderModal} onClose={() => setShowFolderModal(false)} treeData={folderTreeData}/>
                         <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             isRead={readItems.has(item.id)}/>}/>
