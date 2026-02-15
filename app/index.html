@@ -195,15 +195,17 @@
         return 'default';
     };
 
-    // Build folder tree from items
+    // Build folder tree from items with counts
     const buildFolderTree = (items) => {
-        const folders = new Set();
+        const folderCounts = {};
         items.forEach(item => {
-            if (item.folderPath) folders.add(item.folderPath);
+            if (item.folderPath) {
+                folderCounts[item.folderPath] = (folderCounts[item.folderPath] || 0) + 1;
+            }
         });
         
         const tree = {};
-        folders.forEach(path => {
+        Object.keys(folderCounts).forEach(path => {
             const parts = path.split('/').filter(Boolean);
             let current = tree;
             let accumulatedPath = '';
@@ -214,14 +216,18 @@
             });
         });
         
-        const toTreeData = (obj, parentKey = '') => {
+        const toTreeData = (obj) => {
             return Object.entries(obj).map(([name, data]) => {
                 const key = data.fullPath || name;
-                const children = toTreeData(data.children, key);
+                const children = toTreeData(data.children);
+                const directCount = folderCounts[data.fullPath] || 0;
+                const childrenCount = children.reduce((sum, child) => sum + (child.count || 0), 0);
+                const totalCount = directCount + childrenCount;
                 return {
                     title: name,
                     key: key,
                     fullPath: data.fullPath,
+                    count: totalCount,
                     children: children.length ? children : undefined
                 };
             });
@@ -233,9 +239,16 @@
     const FolderTreeModal = ({ visible, onClose, treeData }) => {
         const handleSelect = (selectedKeys, { node }) => {
             if (node.fullPath) {
-                window.open(`/?folder=${encodeURIComponent(node.fullPath)}&unread=true`, '_blank');
+                window.open(`/?unread=true&folder=${encodeURIComponent(node.fullPath)}`, '_blank');
             }
         };
+        
+        const titleRender = (node) => (
+            <span>
+                {node.title}
+                {node.count > 0 && <Tag color="blue" style={{marginLeft: 8}}>{node.count}</Tag>}
+            </span>
+        );
         
         return (
             <Modal
@@ -249,6 +262,7 @@
                         defaultExpandAll
                         treeData={treeData}
                         onSelect={handleSelect}
+                        titleRender={titleRender}
                         style={{ overflow: 'auto' }}
                     />
                 ) : (
