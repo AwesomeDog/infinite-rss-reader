@@ -363,17 +363,13 @@
                     bodyStyle={{ display: minimized ? 'none' : 'block' }}
                     extra={
                         <Space>
-                            <Tooltip title={minimized ? "Maximize" : "Minimize"}>
-                                <Button type="text" icon={minimized ? "➕" : "➖"} onClick={() => setMinimized(!minimized)} />
-                            </Tooltip>
-                            <Tooltip title="Take Screenshot">
-                                <Button type="text" icon="📸" onClick={handleScreenshot}/>
-                            </Tooltip>
+                            <button type="button" title={minimized ? "Maximize" : "Minimize"} onClick={() => setMinimized(!minimized)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>{minimized ? "➕" : "➖"}</button>
+                            <button type="button" title="Take Screenshot" onClick={handleScreenshot} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>📸</button>
                         </Space>
                     }
                 >
                     <div style={{marginTop: -16, marginBottom: 16}}>
-                        {item.link && <Tooltip title="View Source"><a href={item.link} target="_blank" style={{marginRight: 8}}>🔍</a></Tooltip>}
+                        {item.link && <a href={item.link} target="_blank" title="View Source" style={{marginRight: 8}}>🔍</a>}
                         {item.folderPath && <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}} onClick={handleFolderClick}>{item.folderPath}</Tag>}
                         {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
                         {item.date && <Text type="secondary" style={{cursor: 'pointer'}} className="date-link" onClick={handleDateClick}>{new Date(item.date).toLocaleString()}</Text>}
