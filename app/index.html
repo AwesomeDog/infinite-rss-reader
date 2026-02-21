@@ -398,9 +398,47 @@
         
         const folderTreeData = useMemo(() => buildFolderTree(allItems), [allItems]);
         const readItemsRef = useRef(readItems);
+        const pendingReadIdsRef = useRef(new Set());
+        const flushReadTimerRef = useRef(null);
+
         useEffect(() => {
             readItemsRef.current = readItems;
         }, [readItems]);
+
+        const flushPendingReads = useCallback(() => {
+            const pending = pendingReadIdsRef.current;
+            if (!pending || pending.size === 0) return;
+
+            // Swap out the pending set so new events can continue queuing while we flush.
+            pendingReadIdsRef.current = new Set();
+
+            const next = new Set(readItemsRef.current);
+            const toMark = [];
+            pending.forEach((itemId) => {
+                if (!next.has(itemId)) {
+                    next.add(itemId);
+                    toMark.push(itemId);
+                }
+            });
+
+            if (toMark.length === 0) return;
+
+            // One state update per flush (instead of per item)
+            readItemsRef.current = next;
+            setReadItems(next);
+
+            // Mark-read requests are still one-per-item, but they are coalesced in time (per flush)
+            toMark.forEach((itemId) => markItemAsRead(itemId));
+        }, []);
+
+        useEffect(() => {
+            return () => {
+                if (flushReadTimerRef.current != null) {
+                    clearTimeout(flushReadTimerRef.current);
+                    flushReadTimerRef.current = null;
+                }
+            };
+        }, []);
 
         useEffect(() => {
             (async () => {
@@ -443,14 +481,18 @@
         }, [page, allItems]);
 
         const handleBecameVisible = useCallback((itemId) => {
+            // Hot path during fast scrolling: only enqueue and schedule a batched flush.
             if (readItemsRef.current.has(itemId)) return;
 
-            const next = new Set(readItemsRef.current);
-            next.add(itemId);
-            readItemsRef.current = next;
-            setReadItems(next);
-            markItemAsRead(itemId);
-        }, []);
+            pendingReadIdsRef.current.add(itemId);
+
+            if (flushReadTimerRef.current == null) {
+                flushReadTimerRef.current = setTimeout(() => {
+                    flushReadTimerRef.current = null;
+                    flushPendingReads();
+                }, 50);
+            }
+        }, [flushPendingReads]);
 
         const isDarkMode = themeMode === "dark";
         useEffect(() => {
