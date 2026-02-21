@@ -312,7 +312,7 @@
         return doc.body.innerHTML;
     };
 
-    const RssItem = ({item, onBecameVisible, screenshotMode, isRead}) => {
+    const RssItem = React.memo(({item, onBecameVisible, screenshotMode, isRead}) => {
         const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
         const [minimized, setMinimized] = useState(false);
 
@@ -355,7 +355,7 @@
             window.open(`/?folder=${encodeURIComponent(item.folderPath)}`, '_blank');
         };
 
-        const sanitizedBody = item.body ? sanitizeHtml(item.body) : "";
+        const sanitizedBody = useMemo(() => (item.body ? sanitizeHtml(item.body) : ""), [item.body]);
         return (
             <div ref={itemRef} className={`rss-item ${isRead ? "read" : "unread"}`}>
                 <Card 
@@ -382,7 +382,7 @@
                 </Card>
             </div>
         );
-    };
+    });
 
     const App = () => {
         const {themeMode, toggleTheme} = useDarkMode();
@@ -391,12 +391,16 @@
         const [showFolderModal, setShowFolderModal] = useState(false);
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
         const [loading, setLoading] = useState(true), [page, setPage] = useState(1), observer = useRef(),
-            PAGE_SIZE = 100;
+            PAGE_SIZE = 30;
         
         const pageMode = getPageMode();
         const urlParams = getUrlParams();
         
         const folderTreeData = useMemo(() => buildFolderTree(allItems), [allItems]);
+        const readItemsRef = useRef(readItems);
+        useEffect(() => {
+            readItemsRef.current = readItems;
+        }, [readItems]);
 
         useEffect(() => {
             (async () => {
@@ -430,7 +434,7 @@
             if (observer.current) observer.current.disconnect();
             observer.current = new IntersectionObserver((entries) => {
                 if (entries[0].isIntersecting && displayedItems.length < allItems.length) setPage((p) => p + 1);
-            }, {rootMargin: "2000px"});
+            }, {rootMargin: "4000px"});
             node && observer.current.observe(node);
         }, [loading, displayedItems.length, allItems.length]);
 
@@ -439,11 +443,14 @@
         }, [page, allItems]);
 
         const handleBecameVisible = useCallback((itemId) => {
-            if (!readItems.has(itemId)) {
-                setReadItems((prev) => new Set(prev).add(itemId));
-                markItemAsRead(itemId);
-            }
-        }, [readItems]);
+            if (readItemsRef.current.has(itemId)) return;
+
+            const next = new Set(readItemsRef.current);
+            next.add(itemId);
+            readItemsRef.current = next;
+            setReadItems(next);
+            markItemAsRead(itemId);
+        }, []);
 
         const isDarkMode = themeMode === "dark";
         useEffect(() => {
