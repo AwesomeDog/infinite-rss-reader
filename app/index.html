@@ -386,7 +386,7 @@
         const [showStats, setShowStats] = useState(false);
         const [showFolderModal, setShowFolderModal] = useState(false);
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
-        const [loading, setLoading] = useState(true), [page, setPage] = useState(1), observer = useRef(),
+        const [loading, setLoading] = useState(true), [page, setPage] = useState(1),
             PAGE_SIZE = 30;
         
         const pageMode = getPageMode();
@@ -463,13 +463,17 @@
             })();
         }, []);
 
-        const lastItemRef = useCallback((node) => {
-            if (loading) return;
-            if (observer.current) observer.current.disconnect();
-            observer.current = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && displayedItems.length < allItems.length) setPage((p) => p + 1);
+        const sentinelRef = useRef(null);
+
+        useEffect(() => {
+            if (loading || displayedItems.length >= allItems.length) return;
+            const node = sentinelRef.current;
+            if (!node) return;
+            const obs = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) setPage((p) => p + 1);
             }, {rootMargin: "4000px"});
-            node && observer.current.observe(node);
+            obs.observe(node);
+            return () => obs.disconnect();
         }, [loading, displayedItems.length, allItems.length]);
 
         useEffect(() => {
@@ -512,7 +516,7 @@
                         <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             isRead={readItems.has(item.id)}/>}/>
-                        <div ref={lastItemRef} style={{height: 20, marginBottom: 20}}/>
+                        <div ref={sentinelRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
                         {displayedItems.length > 0 && displayedItems.length === allItems.length &&
                             <div style={{textAlign: "center", margin: "20px 0"}}><Text type="secondary">All items
