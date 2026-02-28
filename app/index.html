@@ -171,6 +171,16 @@
         return {screenshotMode, toggleScreenshotMode: () => setScreenshotMode((m) => !m)};
     };
 
+    const useCardMode = () => {
+        const [cardMode, setCardMode] = useState(() => {
+            const saved = localStorage.getItem("cardMode");
+            if (saved === "compact") return "compact";
+            return "standard";
+        });
+        useEffect(() => localStorage.setItem("cardMode", cardMode), [cardMode]);
+        return {cardMode, toggleCardMode: () => setCardMode((m) => (m === "standard" ? "compact" : "standard"))};
+    };
+
     const fetchUnreadItems = async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [];
     const fetchSingleItem = async (itemId) => (await fetch(`/api/rss/item?itemId=${itemId}`).then((r) => r.json())).data || null;
     const fetchFolderItems = async (folder) => (await fetch(`/api/rss/folder?folder=${encodeURIComponent(folder)}`).then((r) => r.json())).data || [];
@@ -273,7 +283,20 @@
     };
 
     const StatsPanel = (
-        {total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, showStats, setShowFolderModal}) => (
+        {
+            total,
+            read,
+            displayed,
+            loading,
+            themeMode,
+            toggleTheme,
+            screenshotMode,
+            toggleScreenshotMode,
+            cardMode,
+            toggleCardMode,
+            showStats,
+            setShowFolderModal
+        }) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
               headStyle={{textAlign: "center"}} bodyStyle={{textAlign: "center"}}>
             <Spin spinning={loading}>
@@ -292,6 +315,10 @@
                 <Tooltip title={screenshotMode ? "Screenshot Full Card" : "Screenshot Body Only"}>
                     <Switch style={{width: "100%"}} size="small" checkedChildren="📸 Full" unCheckedChildren="📸 Body"
                             checked={screenshotMode} onChange={toggleScreenshotMode}/>
+                </Tooltip>
+                <Tooltip title={cardMode === "standard" ? "Standard Interface" : "Compact Interface"}>
+                    <Switch style={{width: "100%"}} size="small" checkedChildren="Standard" unCheckedChildren="Compact"
+                            checked={cardMode === "standard"} onChange={toggleCardMode}/>
                 </Tooltip>
                 <Tooltip title="Browse Folders">
                     <Button size="small" onClick={() => setShowFolderModal(true)} style={{width: "100%"}}>📁 Folders</Button>
@@ -312,9 +339,10 @@
         return doc.body.innerHTML;
     };
 
-    const RssItem = React.memo(({item, onBecameVisible, screenshotMode, isRead}) => {
+    const RssItem = React.memo(({item, onBecameVisible, screenshotMode, cardMode, isRead}) => {
         const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
         const [minimized, setMinimized] = useState(false);
+        const isCompactMode = cardMode === "compact";
 
         useEffect(() => {
             const observer = new IntersectionObserver(([entry]) => {
@@ -363,17 +391,19 @@
                     bodyStyle={{ display: minimized ? 'none' : 'block' }}
                     extra={
                         <Space>
-                            <button type="button" title={minimized ? "Maximize" : "Minimize"} onClick={() => setMinimized(!minimized)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>{minimized ? "➕" : "➖"}</button>
+                            {!isCompactMode && <button type="button" title={minimized ? "Maximize" : "Minimize"} onClick={() => setMinimized(!minimized)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>{minimized ? "➕" : "➖"}</button>}
                             <button type="button" title="Take Screenshot" onClick={handleScreenshot} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>📸</button>
                         </Space>
                     }
                 >
-                    <div style={{marginTop: -16, marginBottom: 16}}>
-                        {item.link && <a href={item.link} target="_blank" title="View Source" style={{marginRight: 8}}>🔍</a>}
-                        {item.folderPath && <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}} onClick={handleFolderClick}>{item.folderPath}</Tag>}
-                        {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
-                        {item.date && <Text type="secondary" style={{cursor: 'pointer'}} className="date-link" onClick={handleDateClick}>{new Date(item.date).toLocaleString()}</Text>}
-                    </div>
+                    {!isCompactMode && (
+                        <div style={{marginTop: -16, marginBottom: 16}}>
+                            {item.link && <a href={item.link} target="_blank" title="View Source" style={{marginRight: 8}}>🔍</a>}
+                            {item.folderPath && <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}} onClick={handleFolderClick}>{item.folderPath}</Tag>}
+                            {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
+                            {item.date && <Text type="secondary" style={{cursor: 'pointer'}} className="date-link" onClick={handleDateClick}>{new Date(item.date).toLocaleString()}</Text>}
+                        </div>
+                    )}
                     {sanitizedBody && <div ref={contentRef} className="rss-item-content" dangerouslySetInnerHTML={{__html: sanitizedBody}}/>}
                 </Card>
             </div>
@@ -383,6 +413,7 @@
     const App = () => {
         const {themeMode, toggleTheme} = useDarkMode();
         const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
+        const {cardMode, toggleCardMode} = useCardMode();
         const [showStats, setShowStats] = useState(false);
         const [showFolderModal, setShowFolderModal] = useState(false);
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
@@ -510,12 +541,13 @@
                         <StatsPanel total={allItems.length} read={readItems.size} displayed={displayedItems.length}
                                     loading={loading && !displayedItems.length} themeMode={themeMode}
                                     toggleTheme={toggleTheme} screenshotMode={screenshotMode}
-                                    toggleScreenshotMode={toggleScreenshotMode} showStats={showStats}
+                                    toggleScreenshotMode={toggleScreenshotMode} cardMode={cardMode}
+                                    toggleCardMode={toggleCardMode} showStats={showStats}
                                     setShowFolderModal={setShowFolderModal}/>
                         <FolderTreeModal visible={showFolderModal} onClose={() => setShowFolderModal(false)} treeData={folderTreeData}/>
                         <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
-                            isRead={readItems.has(item.id)}/>}/>
+                            cardMode={cardMode} isRead={readItems.has(item.id)}/>}/>
                         <div ref={sentinelRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
                         {displayedItems.length > 0 && displayedItems.length === allItems.length &&
