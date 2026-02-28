@@ -357,10 +357,10 @@
         }, [item.id, onBecameVisible]);
 
         const handleScreenshot = async () => {
-            const target = screenshotMode ? itemRef.current : contentRef.current;
+            const card = itemRef.current?.querySelector(".ant-card");
+            const target = screenshotMode ? card : contentRef.current;
             if (!target) return message.error("No content to screenshot.");
             try {
-                const card = itemRef.current?.querySelector(".ant-card");
                 const canvas = await html2canvas(target, {
                     useCORS: true,
                     backgroundColor: card ? getComputedStyle(card).backgroundColor : null
