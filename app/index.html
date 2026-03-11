@@ -464,23 +464,72 @@
         );
     });
 
-    const App = () => {
-        const {themeMode, toggleTheme} = useDarkMode();
-        const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
-        const {cardMode, toggleCardMode} = useCardMode();
-        const {blockWords, setBlockWords} = useBlockWords();
-        const [showStats, setShowStats] = useState(false);
-        const [showFolderModal, setShowFolderModal] = useState(false);
-        const [showBlockWordsModal, setShowBlockWordsModal] = useState(false);
-        const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
-        const [loading, setLoading] = useState(true), [page, setPage] = useState(1),
-            PAGE_SIZE = 30;
-        
-        const pageMode = getPageMode();
-        const urlParams = getUrlParams();
-        
+    const useRssData = () => {
+        const [allItems, setAllItems] = useState([]);
+        const [loading, setLoading] = useState(true);
+
+        useEffect(() => {
+            let isMounted = true;
+            (async () => {
+                setLoading(true);
+                try {
+                    const pageMode = getPageMode();
+                    const urlParams = getUrlParams();
+                    let items = [];
+                    if (pageMode === 'single' && urlParams.itemId) {
+                        const item = await fetchSingleItem(urlParams.itemId);
+                        items = item ? [item] : [];
+                    } else if (pageMode === 'folder-unread' && urlParams.folder) {
+                        const allUnread = await fetchUnreadItems();
+                        items = allUnread.filter(item => 
+                            item.folderPath === urlParams.folder || 
+                            item.folderPath.startsWith(urlParams.folder)
+                        );
+                    } else if (pageMode === 'folder' && urlParams.folder) {
+                        items = await fetchFolderItems(urlParams.folder);
+                    } else {
+                        items = await fetchUnreadItems();
+                    }
+                    if (isMounted) setAllItems(items);
+                } finally {
+                    if (isMounted) setLoading(false);
+                }
+            })();
+            return () => { isMounted = false; };
+        }, []);
+
         const folderTreeData = useMemo(() => buildFolderTree(allItems), [allItems]);
-        const blockWordList = useMemo(() => blockWords.split(/[,，]/).map(w => w.trim().toLowerCase()).filter(Boolean), [blockWords]);
+
+        return { allItems, loading, folderTreeData };
+    };
+
+    const useInfiniteScroll = (allItems, loading, pageSize = 100) => {
+        const [page, setPage] = useState(1);
+        const [displayedItems, setDisplayedItems] = useState([]);
+        const sentinelRef = useRef(null);
+
+        useEffect(() => {
+            setDisplayedItems(allItems.slice(0, page * pageSize));
+        }, [page, allItems, pageSize]);
+
+        useEffect(() => {
+            if (loading || displayedItems.length >= allItems.length) return;
+            const node = sentinelRef.current;
+            if (!node) return;
+            const obs = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) setPage((p) => p + 1);
+            }, {rootMargin: "4000px"});
+            obs.observe(node);
+            return () => obs.disconnect();
+        }, [loading, displayedItems.length, allItems.length]);
+
+        const hasMore = displayedItems.length < allItems.length;
+
+        return { displayedItems, sentinelRef, hasMore };
+    };
+
+    const useReadTracker = () => {
+        const [readItems, setReadItems] = useState(new Set());
         const readItemsRef = useRef(readItems);
         const pendingReadIdsRef = useRef(new Set());
         const flushReadTimerRef = useRef(null);
@@ -507,11 +556,11 @@
 
             if (toMark.length === 0) return;
 
-            // One state update per flush (instead of per item)
+            // One state update per flush
             readItemsRef.current = next;
             setReadItems(next);
 
-            // Mark-read requests are still one-per-item, but they are coalesced in time (per flush)
+            // Coalesced mark-read requests
             toMark.forEach((itemId) => markItemAsRead(itemId));
         }, []);
 
@@ -524,52 +573,7 @@
             };
         }, []);
 
-        useEffect(() => {
-            (async () => {
-                setLoading(true);
-                try {
-                    let items = [];
-                    if (pageMode === 'single' && urlParams.itemId) {
-                        const item = await fetchSingleItem(urlParams.itemId);
-                        items = item ? [item] : [];
-                    } else if (pageMode === 'folder-unread' && urlParams.folder) {
-                        const allUnread = await fetchUnreadItems();
-                        items = allUnread.filter(item => 
-                            item.folderPath === urlParams.folder || 
-                            item.folderPath.startsWith(urlParams.folder)
-                        );
-                    } else if (pageMode === 'folder' && urlParams.folder) {
-                        items = await fetchFolderItems(urlParams.folder);
-                    } else {
-                        items = await fetchUnreadItems();
-                    }
-                    setAllItems(items);
-                    setDisplayedItems(items.slice(0, PAGE_SIZE));
-                } finally {
-                    setLoading(false);
-                }
-            })();
-        }, []);
-
-        const sentinelRef = useRef(null);
-
-        useEffect(() => {
-            if (loading || displayedItems.length >= allItems.length) return;
-            const node = sentinelRef.current;
-            if (!node) return;
-            const obs = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) setPage((p) => p + 1);
-            }, {rootMargin: "4000px"});
-            obs.observe(node);
-            return () => obs.disconnect();
-        }, [loading, displayedItems.length, allItems.length]);
-
-        useEffect(() => {
-            page > 1 && setDisplayedItems(allItems.slice(0, page * PAGE_SIZE));
-        }, [page, allItems]);
-
         const handleBecameVisible = useCallback((itemId) => {
-            // Hot path during fast scrolling: only enqueue and schedule a batched flush.
             if (readItemsRef.current.has(itemId)) return;
 
             pendingReadIdsRef.current.add(itemId);
@@ -581,6 +585,29 @@
                 }, 50);
             }
         }, [flushPendingReads]);
+
+        return { readItems, handleBecameVisible };
+    };
+
+    const App = () => {
+        // --- User Settings ---
+        const {themeMode, toggleTheme} = useDarkMode();
+        const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
+        const {cardMode, toggleCardMode} = useCardMode();
+        const {blockWords, setBlockWords} = useBlockWords();
+
+        // --- UI States ---
+        const [showStats, setShowStats] = useState(false);
+        const [showFolderModal, setShowFolderModal] = useState(false);
+        const [showBlockWordsModal, setShowBlockWordsModal] = useState(false);
+
+        // --- Core Business Logic ---
+        const { allItems, loading, folderTreeData } = useRssData();
+        const { displayedItems, sentinelRef, hasMore } = useInfiniteScroll(allItems, loading);
+        const { readItems, handleBecameVisible } = useReadTracker();
+
+        // --- Derived Data ---
+        const blockWordList = useMemo(() => blockWords.split(/[,\uFF0C]/).map(w => w.trim().toLowerCase()).filter(Boolean), [blockWords]);
 
         const isDarkMode = themeMode === "dark";
         useEffect(() => {
@@ -610,7 +637,7 @@
                             cardMode={cardMode} isRead={readItems.has(item.id)} blockWordList={blockWordList}/>}/>
                         <div ref={sentinelRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
-                        {displayedItems.length > 0 && displayedItems.length === allItems.length &&
+                        {!hasMore && displayedItems.length > 0 &&
                             <div style={{textAlign: "center", margin: "20px 0"}}><Text type="secondary">All items
                                 loaded.</Text></div>}
                     </Content>
