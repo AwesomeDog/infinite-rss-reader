@@ -208,25 +208,6 @@
     const fetchFolderItems = async (folder) => (await fetch(`/api/rss/folder?folder=${encodeURIComponent(folder)}`).then((r) => r.json())).data || [];
     const markItemAsRead = (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error);
 
-    // Parse URL parameters
-    const getUrlParams = () => {
-        const params = new URLSearchParams(window.location.search);
-        return {
-            itemId: params.get('itemId'),
-            folder: params.get('folder'),
-            unread: params.get('unread') === 'true'
-        };
-    };
-
-    // Get page mode based on URL params
-    const getPageMode = () => {
-        const {itemId, folder, unread} = getUrlParams();
-        if (itemId) return 'single';
-        if (folder && unread) return 'folder-unread';
-        if (folder) return 'folder';
-        return 'default';
-    };
-
     // Build folder tree from items with counts
     const buildFolderTree = (items) => {
         const folderCounts = {};
@@ -254,12 +235,11 @@
                 const children = toTreeData(data.children);
                 const directCount = folderCounts[data.fullPath] || 0;
                 const childrenCount = children.reduce((sum, child) => sum + (child.count || 0), 0);
-                const totalCount = directCount + childrenCount;
                 return {
                     title: name,
                     key: key,
                     fullPath: data.fullPath,
-                    count: totalCount,
+                    count: directCount + childrenCount,
                     children: children.length ? children : undefined
                 };
             });
@@ -269,7 +249,7 @@
     };
 
     const FolderTreeModal = ({ visible, onClose, treeData }) => {
-        const handleSelect = (selectedKeys, { node }) => {
+        const handleSelect = (_, { node }) => {
             if (node.fullPath) {
                 window.open(`/?unread=true&folder=${encodeURIComponent(node.fullPath)}`, '_blank');
             }
@@ -467,22 +447,24 @@
         useEffect(() => {
             let isMounted = true;
             (async () => {
-                setLoading(true);
                 try {
-                    const pageMode = getPageMode();
-                    const urlParams = getUrlParams();
+                    const params = new URLSearchParams(window.location.search);
+                    const itemId = params.get('itemId');
+                    const folder = params.get('folder');
+                    const unread = params.get('unread') === 'true';
+
                     let items = [];
-                    if (pageMode === 'single' && urlParams.itemId) {
-                        const item = await fetchSingleItem(urlParams.itemId);
+                    if (itemId) {
+                        const item = await fetchSingleItem(itemId);
                         items = item ? [item] : [];
-                    } else if (pageMode === 'folder-unread' && urlParams.folder) {
+                    } else if (folder && unread) {
                         const allUnread = await fetchUnreadItems();
                         items = allUnread.filter(item => 
-                            item.folderPath === urlParams.folder || 
-                            item.folderPath.startsWith(urlParams.folder)
+                            item.folderPath === folder || 
+                            item.folderPath.startsWith(folder)
                         );
-                    } else if (pageMode === 'folder' && urlParams.folder) {
-                        items = await fetchFolderItems(urlParams.folder);
+                    } else if (folder) {
+                        items = await fetchFolderItems(folder);
                     } else {
                         items = await fetchUnreadItems();
                     }
