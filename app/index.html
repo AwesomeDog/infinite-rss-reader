@@ -192,11 +192,7 @@
     };
 
     const useCardMode = () => {
-        const [cardMode, setCardMode] = useState(() => {
-            const saved = localStorage.getItem("cardMode");
-            if (saved === "compact") return "compact";
-            return "standard";
-        });
+        const [cardMode, setCardMode] = useState(() => localStorage.getItem("cardMode") || "standard");
         useEffect(() => localStorage.setItem("cardMode", cardMode), [cardMode]);
         return {cardMode, toggleCardMode: () => setCardMode((m) => (m === "standard" ? "compact" : "standard"))};
     };
@@ -505,86 +501,52 @@
 
     const useInfiniteScroll = (allItems, loading, pageSize = 100) => {
         const [page, setPage] = useState(1);
-        const [displayedItems, setDisplayedItems] = useState([]);
         const sentinelRef = useRef(null);
 
-        useEffect(() => {
-            setDisplayedItems(allItems.slice(0, page * pageSize));
-        }, [page, allItems, pageSize]);
+        const displayedItems = useMemo(() => allItems.slice(0, page * pageSize), [allItems, page, pageSize]);
 
         useEffect(() => {
             if (loading || displayedItems.length >= allItems.length) return;
             const node = sentinelRef.current;
             if (!node) return;
-            const obs = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) setPage((p) => p + 1);
+            const obs = new IntersectionObserver(([entry]) => {
+                if (entry.isIntersecting) setPage((p) => p + 1);
             }, {rootMargin: "4000px"});
             obs.observe(node);
             return () => obs.disconnect();
         }, [loading, displayedItems.length, allItems.length]);
 
-        const hasMore = displayedItems.length < allItems.length;
-
-        return { displayedItems, sentinelRef, hasMore };
+        return { displayedItems, sentinelRef, hasMore: displayedItems.length < allItems.length };
     };
 
     const useReadTracker = () => {
         const [readItems, setReadItems] = useState(new Set());
-        const readItemsRef = useRef(readItems);
-        const pendingReadIdsRef = useRef(new Set());
-        const flushReadTimerRef = useRef(null);
-
-        useEffect(() => {
-            readItemsRef.current = readItems;
-        }, [readItems]);
-
-        const flushPendingReads = useCallback(() => {
-            const pending = pendingReadIdsRef.current;
-            if (!pending || pending.size === 0) return;
-
-            // Swap out the pending set so new events can continue queuing while we flush.
-            pendingReadIdsRef.current = new Set();
-
-            const next = new Set(readItemsRef.current);
-            const toMark = [];
-            pending.forEach((itemId) => {
-                if (!next.has(itemId)) {
-                    next.add(itemId);
-                    toMark.push(itemId);
-                }
-            });
-
-            if (toMark.length === 0) return;
-
-            // One state update per flush
-            readItemsRef.current = next;
-            setReadItems(next);
-
-            // Coalesced mark-read requests
-            toMark.forEach((itemId) => markItemAsRead(itemId));
-        }, []);
-
-        useEffect(() => {
-            return () => {
-                if (flushReadTimerRef.current != null) {
-                    clearTimeout(flushReadTimerRef.current);
-                    flushReadTimerRef.current = null;
-                }
-            };
-        }, []);
+        const processedRef = useRef(new Set());
+        const batchQueueRef = useRef([]);
+        const timerRef = useRef(null);
 
         const handleBecameVisible = useCallback((itemId) => {
-            if (readItemsRef.current.has(itemId)) return;
+            if (processedRef.current.has(itemId)) return;
+            processedRef.current.add(itemId);
+            batchQueueRef.current.push(itemId);
 
-            pendingReadIdsRef.current.add(itemId);
-
-            if (flushReadTimerRef.current == null) {
-                flushReadTimerRef.current = setTimeout(() => {
-                    flushReadTimerRef.current = null;
-                    flushPendingReads();
+            if (!timerRef.current) {
+                timerRef.current = setTimeout(() => {
+                    timerRef.current = null;
+                    const itemsToAdd = batchQueueRef.current;
+                    batchQueueRef.current = [];
+                    
+                    if (itemsToAdd.length > 0) {
+                        itemsToAdd.forEach(id => markItemAsRead(id));
+                        setReadItems(prev => {
+                            const next = new Set(prev);
+                            itemsToAdd.forEach(id => next.add(id));
+                            return next;
+                        });
+                    }
                 }, 50);
             }
-        }, [flushPendingReads]);
+        }, []);
 
         return { readItems, handleBecameVisible };
     };
