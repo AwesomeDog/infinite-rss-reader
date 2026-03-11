@@ -173,7 +173,7 @@
     const {useState, useEffect, useRef, useCallback, useMemo} = React;
     const {
         Layout, Divider, List, Card, Typography, Spin, Tag, Button, ConfigProvider,
-        theme, Statistic, FloatButton, message, Tooltip, Switch, Space, Modal, Tree
+        theme, Statistic, FloatButton, message, Tooltip, Switch, Space, Modal, Tree, Input
     } = antd;
     const {DirectoryTree} = Tree;
     const {Content} = Layout;
@@ -199,6 +199,12 @@
         });
         useEffect(() => localStorage.setItem("cardMode", cardMode), [cardMode]);
         return {cardMode, toggleCardMode: () => setCardMode((m) => (m === "standard" ? "compact" : "standard"))};
+    };
+
+    const useBlockWords = () => {
+        const [blockWords, setBlockWords] = useState(() => localStorage.getItem("blockWords") || "");
+        useEffect(() => localStorage.setItem("blockWords", blockWords), [blockWords]);
+        return {blockWords, setBlockWords};
     };
 
     const fetchUnreadItems = async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [];
@@ -315,7 +321,8 @@
             cardMode,
             toggleCardMode,
             showStats,
-            setShowFolderModal
+            setShowFolderModal,
+            setShowBlockWordsModal
         }) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
               headStyle={{textAlign: "center"}} bodyStyle={{textAlign: "center"}}>
@@ -343,9 +350,30 @@
                 <Tooltip title="Browse Folders">
                     <Button size="small" onClick={() => setShowFolderModal(true)} style={{width: "100%"}}>📁 Folders</Button>
                 </Tooltip>
+                <Tooltip title="Manage block words">
+                    <Button size="small" onClick={() => setShowBlockWordsModal(true)} style={{width: "100%"}}>🚫 Block</Button>
+                </Tooltip>
             </div>
         </Card>
     );
+
+    const BlockWordsModal = ({visible, onClose, blockWords, setBlockWords}) => {
+        const [draft, setDraft] = useState(blockWords);
+        useEffect(() => { if (visible) setDraft(blockWords); }, [visible]);
+        return (
+            <Modal
+                title="🚫 Block Words"
+                open={visible}
+                onCancel={onClose}
+                onOk={() => { setBlockWords(draft); onClose(); }}
+                okText="Save"
+                cancelText="Cancel"
+            >
+                <p><Text type="secondary">Comma-separated keywords. Matched items will be auto-minimized.</Text></p>
+                <Input.TextArea rows={4} placeholder="keyword1, keyword2, keyword3" value={draft} onChange={e => setDraft(e.target.value)}/>
+            </Modal>
+        );
+    };
 
     const sanitizeHtml = (html) => {
         const doc = new DOMParser().parseFromString(html, "text/html");
@@ -359,9 +387,13 @@
         return doc.body.innerHTML;
     };
 
-    const RssItem = React.memo(({item, onBecameVisible, screenshotMode, cardMode, isRead}) => {
+    const RssItem = React.memo(({item, onBecameVisible, screenshotMode, cardMode, isRead, blockWordList}) => {
         const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
-        const [minimized, setMinimized] = useState(false);
+        const [minimized, setMinimized] = useState(() => {
+            if (!blockWordList || blockWordList.length === 0) return false;
+            const text = ((item.subject || '') + ' ' + (item.body || '')).toLowerCase();
+            return blockWordList.some(w => text.includes(w));
+        });
         const isCompactMode = cardMode === "compact";
 
         useEffect(() => {
@@ -436,8 +468,10 @@
         const {themeMode, toggleTheme} = useDarkMode();
         const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
         const {cardMode, toggleCardMode} = useCardMode();
+        const {blockWords, setBlockWords} = useBlockWords();
         const [showStats, setShowStats] = useState(false);
         const [showFolderModal, setShowFolderModal] = useState(false);
+        const [showBlockWordsModal, setShowBlockWordsModal] = useState(false);
         const [allItems, setAllItems] = useState([]), [displayedItems, setDisplayedItems] = useState([]), [readItems, setReadItems] = useState(new Set());
         const [loading, setLoading] = useState(true), [page, setPage] = useState(1),
             PAGE_SIZE = 30;
@@ -446,6 +480,7 @@
         const urlParams = getUrlParams();
         
         const folderTreeData = useMemo(() => buildFolderTree(allItems), [allItems]);
+        const blockWordList = useMemo(() => blockWords.split(/[,，]/).map(w => w.trim().toLowerCase()).filter(Boolean), [blockWords]);
         const readItemsRef = useRef(readItems);
         const pendingReadIdsRef = useRef(new Set());
         const flushReadTimerRef = useRef(null);
@@ -566,11 +601,13 @@
                                     toggleTheme={toggleTheme} screenshotMode={screenshotMode}
                                     toggleScreenshotMode={toggleScreenshotMode} cardMode={cardMode}
                                     toggleCardMode={toggleCardMode} showStats={showStats}
-                                    setShowFolderModal={setShowFolderModal}/>
+                                    setShowFolderModal={setShowFolderModal}
+                                    setShowBlockWordsModal={setShowBlockWordsModal}/>
                         <FolderTreeModal visible={showFolderModal} onClose={() => setShowFolderModal(false)} treeData={folderTreeData}/>
+                        <BlockWordsModal visible={showBlockWordsModal} onClose={() => setShowBlockWordsModal(false)} blockWords={blockWords} setBlockWords={setBlockWords}/>
                         <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
-                            cardMode={cardMode} isRead={readItems.has(item.id)}/>}/>
+                            cardMode={cardMode} isRead={readItems.has(item.id)} blockWordList={blockWordList}/>}/>
                         <div ref={sentinelRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
                         {displayedItems.length > 0 && displayedItems.length === allItems.length &&
