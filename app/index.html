@@ -400,17 +400,6 @@
             }
         };
 
-        const handleDateClick = (e) => {
-            e.preventDefault();
-            window.open(`/?itemId=${item.id}`, '_blank');
-        };
-
-        const handleFolderClick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            window.open(`/?folder=${encodeURIComponent(item.folderPath)}`, '_blank');
-        };
-
         const sanitizedBody = useMemo(() => (item.body ? sanitizeHtml(item.body) : ""), [item.body]);
         return (
             <div ref={itemRef} className={`rss-item ${isRead ? "read" : "unread"}`}>
@@ -426,9 +415,17 @@
                     {!isCompactMode && (
                         <div style={{marginTop: -16, marginBottom: 16}}>
                             {item.link && <a href={item.link} target="_blank" title="View Source" style={{marginRight: 8}}>🔍</a>}
-                            {item.folderPath && <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}} onClick={handleFolderClick}>{item.folderPath}</Tag>}
+                            {item.folderPath && (
+                                <a href={`/?folder=${encodeURIComponent(item.folderPath)}`} target="_blank" style={{textDecoration: 'none'}}>
+                                    <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}}>{item.folderPath}</Tag>
+                                </a>
+                            )}
                             {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
-                            {item.date && <Text type="secondary" style={{cursor: 'pointer'}} className="date-link" onClick={handleDateClick}>{new Date(item.date).toLocaleString()}</Text>}
+                            {item.date && (
+                                <a href={`/?itemId=${item.id}`} target="_blank" className="date-link" style={{textDecoration: 'none'}}>
+                                    <Text type="secondary" style={{cursor: 'pointer'}}>{new Date(item.date).toLocaleString()}</Text>
+                                </a>
+                            )}
                         </div>
                     )}
                     <div className={`rss-item-body${minimized ? ' minimized' : ''}`}>
