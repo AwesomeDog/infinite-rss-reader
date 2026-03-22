@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.28.4/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.18/dayjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/antd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css"/>
     <style>
         .main-content {
@@ -389,12 +389,16 @@
             const target = screenshotMode ? card : contentRef.current;
             if (!target) return message.error("No content to screenshot.");
             try {
-                const canvas = await html2canvas(target, {
-                    useCORS: true,
-                    backgroundColor: card ? getComputedStyle(card).backgroundColor : null
+                const blob = await htmlToImage.toBlob(target, {
+                    backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff'
                 });
-                const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
-                blob ? (await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]), message.success("Screenshot copied!")) : message.error("Failed.");
+                
+                if (blob) {
+                    await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+                    message.success("Screenshot copied!");
+                } else {
+                    message.error("Failed.");
+                }
             } catch (e) {
                 message.error("Screenshot failed.");
             }
