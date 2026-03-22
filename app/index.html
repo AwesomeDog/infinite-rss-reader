@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.18/dayjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/antd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css" crossorigin="anonymous"/>
     <style>
         .main-content {
             padding: 0 25%;
@@ -390,7 +390,10 @@
             if (!target) return message.error("No content to screenshot.");
             try {
                 const blob = await htmlToImage.toBlob(target, {
-                    backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff'
+                    backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff',
+                    imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                    skipFonts: true,
+                    allowTaint: true
                 });
                 
                 if (blob) {
