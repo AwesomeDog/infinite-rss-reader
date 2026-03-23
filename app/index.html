@@ -563,6 +563,29 @@
             document.body.style.color = isDarkMode ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.88)";
         }, [isDarkMode]);
 
+        // --- Dynamic Title Update ---
+        useEffect(() => {
+            const params = new URLSearchParams(window.location.search);
+            const folder = params.get('folder');
+            const itemId = params.get('itemId');
+            const unread = params.get('unread') === 'true';
+
+            let title = "Infinite RSS Reader";
+            
+            if (itemId) {
+                if (allItems.length > 0 && allItems[0].subject) {
+                    title = `${allItems[0].subject} - Infinite RSS Reader`;
+                } else {
+                    title = `Loading Item... - Infinite RSS Reader`;
+                }
+            } else if (folder) {
+                const folderName = folder.split('/').filter(Boolean).pop() || folder;
+                title = `${folderName} ${unread ? '(Unread)' : ''} - Infinite RSS Reader`;
+            }
+            
+            document.title = title;
+        }, [allItems]);
+
         return (
             <ConfigProvider theme={{
                 cssVar: true,
