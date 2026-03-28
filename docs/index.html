@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite RSS Reader | Beautiful Privacy-First RSS Experience</title>
+    <meta name="description" content="A stunning, privacy-first infinite-scrolling RSS reader powered by Thunderbird. Syncs locally, runs fast, and has zero dependencies.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* CSS reset & base */
+        :root {
+            --primary: #696FC7;
+            --secondary: #fa8c16;
+            --accent: #00ff88;
+            --bg-dark: #090814;
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.7);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-highlight: rgba(255, 255, 255, 0.12);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5, h6, .nav-brand {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Floating Orbs for Mesh Gradient Effect */
+        .orb-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.45;
+            animation: float 25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .orb-1 { 
+            width: 55vw; height: 55vw; max-width: 700px; max-height: 700px; 
+            background: var(--primary); 
+            top: -15%; left: -10%; 
+            animation-delay: 0s; 
+        }
+        .orb-2 { 
+            width: 45vw; height: 45vw; max-width: 600px; max-height: 600px; 
+            background: var(--secondary); 
+            bottom: -10%; right: -10%; 
+            animation-delay: -5s; 
+            animation-direction: alternate-reverse; 
+        }
+        .orb-3 { 
+            width: 35vw; height: 35vw; max-width: 450px; max-height: 450px; 
+            background: var(--accent); 
+            top: 40%; left: 40%; 
+            animation-duration: 30s; 
+            opacity: 0.25; 
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(5%, 10%) scale(1.05); }
+            100% { transform: translate(-5%, -5%) scale(0.95); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 0;
+            animation: fadeInDown 0.8s ease forwards;
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .nav-brand { 
+            font-size: 1.4rem; 
+            font-weight: 800; 
+            letter-spacing: -0.5px; 
+            display: flex; 
+            align-items: center; 
+            gap: 0.6rem; 
+        }
+        .nav-right { display: flex; gap: 2rem; align-items: center; }
+        .nav-right a { 
+            color: var(--text-muted); 
+            text-decoration: none; 
+            font-size: 0.95rem; 
+            font-weight: 500; 
+            transition: all 0.3s ease; 
+        }
+        .nav-right a:hover { 
+            color: var(--text-main); 
+        }
+        .nav-cta {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 0.6rem 1.4rem;
+            border-radius: 99px;
+            border: 1px solid var(--glass-border);
+            color: var(--text-main) !important;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .nav-cta:hover { 
+            background: var(--glass-highlight); 
+            border-color: rgba(255,255,255,0.25);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 7rem 0 5rem;
+            max-width: 850px;
+            margin: 0 auto;
+            animation: fadeInUp 1s ease forwards;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        h1 { 
+            font-size: clamp(3rem, 7vw, 5.2rem); 
+            font-weight: 800; 
+            line-height: 1.05; 
+            margin-bottom: 1.5rem; 
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,0.6) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p { 
+            font-size: 1.25rem; 
+            color: var(--text-muted); 
+            line-height: 1.7; 
+            max-width: 600px; 
+            margin: 0 auto 3rem; 
+        }
+
+        /* Buttons */
+        .cta-buttons {
+            display: flex;
+            gap: 1.25rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 1rem 2.5rem;
+            border-radius: 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn-primary { 
+            background: #fff; 
+            color: #090814; 
+            box-shadow: 0 10px 30px rgba(255,255,255,0.15);
+        }
+        .btn-primary:hover { 
+            transform: translateY(-4px); 
+            box-shadow: 0 15px 35px rgba(255,255,255,0.25); 
+        }
+        .btn-glass { 
+            background: var(--glass-bg); 
+            color: #fff; 
+            border: 1px solid var(--glass-border); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .btn-glass:hover { 
+            background: var(--glass-highlight); 
+            border-color: rgba(255,255,255,0.25);
+            transform: translateY(-4px);
+        }
+
+        /* Glass Card Utility */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+            transition: all 0.4s ease;
+        }
+
+        /* Screenshot / Interface Preview */
+        .preview-wrapper {
+            margin: 0 auto 8rem;
+            max-width: 960px;
+            perspective: 1200px;
+            animation: fadeInUp 1.2s ease forwards;
+            opacity: 0;
+            animation-delay: 0.2s;
+        }
+        .preview-inner {
+            padding: 0.75rem;
+            border-radius: 28px;
+            transform: rotateX(8deg) scale(0.95);
+            transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transform-style: preserve-3d;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .preview-wrapper:hover .preview-inner {
+            transform: rotateX(0deg) scale(1);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .preview-inner img {
+            width: 100%;
+            border-radius: 20px;
+            display: block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Features Section */
+        .features-section { padding: 2rem 0 6rem; }
+        .section-header { text-align: center; margin-bottom: 4rem; }
+        .section-header h2 { font-size: 2.8rem; font-weight: 800; margin-bottom: 1rem; }
+        .section-header p { color: var(--text-muted); font-size: 1.15rem; max-width: 600px; margin: 0 auto; }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .feature-card {
+            padding: 2.5rem 2rem;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.08), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: -1;
+        }
+        .feature-card:hover::before { opacity: 1; }
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255,255,255,0.18);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        }
+        .feature-icon-wrapper {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.04);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .feature-card:hover .feature-icon-wrapper {
+            transform: scale(1.1) rotate(5deg);
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .feature-card h3 { font-size: 1.35rem; margin-bottom: 0.75rem; font-weight: 700; }
+        .feature-card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+
+        /* Install Section */
+        .install-section {
+            padding: 6rem 0;
+            max-width: 950px;
+            margin: 0 auto;
+        }
+        .install-options {
+            display: flex;
+            gap: 2rem;
+            align-items: stretch;
+            margin-top: 3.5rem;
+            position: relative;
+        }
+        .install-card {
+            flex: 1;
+            padding: 3rem 2.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .install-card.recommended {
+            border-color: rgba(105, 111, 199, 0.3);
+            box-shadow: 0 15px 40px rgba(105, 111, 199, 0.1);
+        }
+        .install-card.recommended:hover {
+            border-color: rgba(105, 111, 199, 0.6);
+            box-shadow: 0 20px 50px rgba(105, 111, 199, 0.2);
+        }
+        .badge {
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+            padding: 0.35rem 1.2rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(105, 111, 199, 0.4);
+        }
+        .install-card-header { text-align: center; margin-bottom: 2.5rem; }
+        .install-card-header .icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
+        .install-card h3 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .install-card p { color: var(--text-muted); font-size: 0.95rem; }
+
+        /* Code Blocks styling */
+        .code-blocks {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            margin-top: auto;
+        }
+        .code-row {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.4rem;
+            transition: all 0.3s ease;
+        }
+        .code-row:hover { 
+            border-color: rgba(255,255,255,0.15); 
+            background: rgba(0,0,0,0.5);
+        }
+        .code-label {
+            font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0;
+        }
+        .code-snippet {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem; color: var(--accent);
+            white-space: nowrap; overflow-x: auto;
+            scrollbar-width: none; /* Firefox */
+        }
+        .code-snippet::-webkit-scrollbar { display: none; }
+
+        /* Download Options Grid */
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.85rem;
+            margin-top: auto;
+        }
+        .dl-btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 1rem;
+            text-align: center;
+            color: #fff; 
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 0.5rem;
+        }
+        .dl-btn:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.25);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .dl-icon svg { width: 26px; height: 26px; fill: currentColor; opacity: 0.8; transition: opacity 0.3s; }
+        .dl-btn:hover .dl-icon svg { opacity: 1; }
+        .dl-text { font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 0.95rem; line-height: 1.2; }
+        .dl-sub { font-family: 'Inter', sans-serif; font-size: 0.7rem; color: var(--text-muted); font-weight: 400; display: block; margin-top: 2px;}
+        .dl-btn.full-width { grid-column: 1 / -1; }
+
+        /* Divider between options */
+        .divider {
+            display: flex; align-items: center; justify-content: center;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+        .divider-text {
+            background: #141326;
+            color: rgba(255,255,255,0.5); 
+            font-weight: 700; font-size: 0.75rem;
+            width: 48px; height: 48px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 0;
+            margin-top: 4rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+        }
+        footer a { color: rgba(255,255,255,0.6); text-decoration: none; font-weight: 500; transition: color 0.3s; }
+        footer a:hover { color: #fff; }
+
+        /* Responsive Design */
+        @media (max-width: 900px) {
+            .install-options { flex-direction: column; gap: 3rem; }
+            .divider { position: relative; top: auto; left: auto; transform: none; margin: -1.5rem 0; }
+            .download-grid { grid-template-columns: repeat(3, 1fr); }
+            .dl-btn.full-width { grid-column: auto; }
+        }
+        @media (max-width: 768px) {
+            nav { padding: 1.5rem 0; }
+            .nav-right a:not(.nav-cta) { display: none; }
+            h1 { font-size: 2.8rem; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .download-grid { grid-template-columns: repeat(2, 1fr); }
+            .dl-btn.full-width { grid-column: 1 / -1; }
+        }
+        @media (max-width: 500px) {
+            h1 { font-size: 2.2rem; }
+            .cta-buttons { flex-direction: column; padding: 0 1rem; }
+            .btn { width: 100%; }
+            .features-grid { grid-template-columns: 1fr; }
+            .install-card { padding: 2.5rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating Background Elements -->
+    <div class="orb-container" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="container">
+        <!-- Header / Nav -->
+        <header>
+            <nav>
+                <div class="nav-brand">
+                    <span>📰</span> Infinite RSS Reader
+                </div>
+                <div class="nav-right">
+                    <a href="#features">Features</a>
+                    <a href="#install">Install</a>
+                    <a href="https://github.com/AwesomeDog/infinite-rss-reader" class="nav-cta" target="_blank" rel="noopener noreferrer">GitHub</a>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Hero Section -->
+            <section class="hero" id="home">
+                <h1>The RSS reader you've been waiting for.</h1>
+                <p>A beautiful, infinite-scrolling interface for your Thunderbird RSS feeds. Private, ultra-fast, and distraction-free. One single binary to rule them all.</p>
+                <div class="cta-buttons">
+                    <a href="#install" class="btn btn-primary">Get Started</a>
+                    <a href="https://github.com/AwesomeDog/infinite-rss-reader" class="btn btn-glass" target="_blank" rel="noopener noreferrer">View Source</a>
+                </div>
+            </section>
+
+            <!-- Interface Preview Section -->
+            <section class="preview-wrapper" aria-label="Application Interface Preview">
+                <div class="preview-inner glass-card">
+                    <!-- Note: Adjusted image path relative to root index.html -->
+                    <img src="screenshot.png" alt="Infinite RSS Reader elegant user interface" loading="lazy">
+                </div>
+            </section>
+
+            <!-- Features Section -->
+            <section class="features-section" id="features">
+                <div class="section-header">
+                    <h2>Everything you need.</h2>
+                    <p>Designed for power users who care about privacy, performance, and aesthetics.</p>
+                </div>
+                
+                <div class="features-grid">
+                    <article class="feature-card glass-card">
+                        <div class="feature-icon-wrapper">🚀</div>
+                        <h3>Infinite Scroll</h3>
+                        <p>Seamlessly browse hundreds of news items. Content pre-fetches and renders natively as you scroll without stuttering.</p>
+                    </article>
+                    
+                    <article class="feature-card glass-card">
+                        <div class="feature-icon-wrapper">🔒</div>
+                        <h3>100% Private</h3>
+                        <p>Runs entirely on your machine. Zero cloud servers, zero tracking, and absolutely no data collection.</p>
+                    </article>
+                    
+                    <article class="feature-card glass-card">
+                        <div class="feature-icon-wrapper">📦</div>
+                        <h3>Zero Dependencies</h3>
+                        <p>A single Go binary containing everything. No npm, no Docker, no heavy runtimes required to get started.</p>
+                    </article>
+                    
+                    <article class="feature-card glass-card">
+                        <div class="feature-icon-wrapper">🔄</div>
+                        <h3>Two-Way Sync</h3>
+                        <p>Read an article in the browser, and it instantly marks as read in Thunderbird. Everything stays perfectly synchronized.</p>
+                    </article>
+                    
+                    <article class="feature-card glass-card">
+                        <div class="feature-icon-wrapper">📱</div>
+                        <h3>Mobile Ready</h3>
+                        <p>Fluid responsive design out of the box. Easily access your feeds from any mobile device on your local network.</p>
+                    </article>
+                    
+                    <article class="feature-card glass-card">
+                        <div class="feature-icon-wrapper">🎨</div>
+                        <h3>Adaptive Themes</h3>
+                        <p>Automatically detects your system's preferences. Smoothly toggle between beautifully crafted dark and light modes.</p>
+                    </article>
+                </div>
+            </section>
+
+            <!-- Installation Section -->
+            <section class="install-section" id="install">
+                <div class="section-header">
+                    <h2>Get started in seconds.</h2>
+                    <p>Choose your preferred way to install and start reading.</p>
+                </div>
+
+                <div class="install-options">
+                    
+                    <!-- Option A: Package Manager -->
+                    <div class="install-card glass-card recommended">
+                        <div class="badge">Recommended</div>
+                        <div class="install-card-header">
+                            <span class="icon">📦</span>
+                            <h3>Package Manager</h3>
+                            <p>One command install, automatic seamless updates</p>
+                        </div>
+
+                        <div class="code-blocks">
+                            <div class="code-row">
+                                <span class="code-label">macOS / Linux</span>
+                                <code class="code-snippet">brew install AwesomeDog/tap/infrss</code>
+                            </div>
+                            <div class="code-row">
+                                <span class="code-label">Windows</span>
+                                <code class="code-snippet">winget install AwesomeDog.InfRSS</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider">
+                        <span class="divider-text">OR</span>
+                    </div>
+
+                    <!-- Option B: Direct Download -->
+                    <div class="install-card glass-card">
+                        <div class="install-card-header">
+                            <span class="icon">⬇️</span>
+                            <h3>Direct Download</h3>
+                            <p>Download the standalone binary for your platform and double click to install</p>
+                        </div>
+
+                        <div class="download-grid">
+                            <a href="https://github.com/AwesomeDog/infinite-rss-reader/releases/latest/download/infrss-macos-arm64" class="dl-btn" target="_blank" rel="noopener noreferrer" aria-label="Download for macOS Apple Silicon">
+                                <span class="dl-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                                </span>
+                                <span class="dl-text">macOS <span class="dl-sub">Apple Silicon</span></span>
+                            </a>
+                            
+                            <a href="https://github.com/AwesomeDog/infinite-rss-reader/releases/latest/download/infrss-windows.exe" class="dl-btn" target="_blank" rel="noopener noreferrer" aria-label="Download for Windows">
+                                <span class="dl-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M3 12V6.5l8-1.1V12H3zm0 .5h8v6.6l-8-1.1V12.5zM11.5 5.3l9.5-1.3v8h-9.5V5.3zM21 12.5v8l-9.5-1.3V12.5H21z"/></svg>
+                                </span>
+                                <span class="dl-text">Windows <span class="dl-sub">x64</span></span>
+                            </a>
+                            
+                            <a href="https://github.com/AwesomeDog/infinite-rss-reader/releases/latest/download/infrss-linux-amd64" class="dl-btn full-width" target="_blank" rel="noopener noreferrer" aria-label="Download for Linux">
+                                <span class="dl-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M20.581 19.049c-.55-.446-.336-1.431-.907-1.917.553-3.365-.997-6.331-2.845-8.232-1.551-1.595-1.051-3.147-1.051-4.49 0-2.146-.881-4.41-3.55-4.41-2.853 0-3.635 2.38-3.663 3.738-.02 1.002-.073 1.92-.66 2.808C6.522 8.56 5.264 10.702 4.613 13.39c-.243.997-.122 1.99-.122 2.989 0 .984-.353 1.781-.353 1.781s1.108-.168 1.87.19c1.005.47 1.678.852 2.867.585.39-.088.556-.406 1.095-.501.722-.127 1.297.468 2.07.468.776 0 1.33-.609 2.064-.462.523.105.684.426 1.065.517 1.195.288 1.893-.1 2.854-.584.752-.38 1.835-.187 1.835-.187s-.343-.725-.277-2.088zM8.57 17.397c-.79.064-1.554-.37-1.692-.969-.138-.6.358-1.177 1.147-1.24.79-.065 1.554.37 1.692.968.139.6-.357 1.178-1.147 1.241zm5.104-.18c-.79.064-1.554-.37-1.692-.968-.139-.6.357-1.178 1.147-1.241.79-.065 1.554.37 1.692.968.138.6-.358 1.177-1.147 1.241z"/></svg>
+                                </span>
+                                <span class="dl-text">Linux <span class="dl-sub">x64</span></span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>Open Source &middot; MIT License &middot; <a href="https://github.com/AwesomeDog/infinite-rss-reader" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>

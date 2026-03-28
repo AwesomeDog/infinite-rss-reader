@@ -168,9 +168,6 @@ LDFLAGS="-X main.version=${VERSION}"
 # macOS (Apple Silicon)
 GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/infrss-macos-arm64 .
 
-# macOS (Intel)
-GOOS=darwin GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-macos-amd64 .
-
 # Windows
 GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-windows.exe .
 
@@ -184,7 +181,6 @@ GitHub Releases with bare binaries (no ZIP — single file, nothing to extract):
 
 ```
 infrss-macos-arm64
-infrss-macos-amd64
 infrss-linux-amd64
 infrss-windows.exe
 ```

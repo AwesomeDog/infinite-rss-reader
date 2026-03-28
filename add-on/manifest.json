@@ -1,15 +1,15 @@
 {
-  "description": "Expose Thunderbird RSS via HTTP API",
+  "description": "Infinite RSS Reader for Thunderbird",
   "manifest_version": 2,
-  "name": "RSS HTTP API",
-  "version": "2.0",
+  "name": "Infinite RSS Reader",
+  "version": "0.0.0",
   "icons": {
     "48": "icons/rss.svg"
   },
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "rss_bridge@example.org",
+      "id": "infrss@awesomedog.github.io",
       "strict_min_version": "91.0"
     }
   },

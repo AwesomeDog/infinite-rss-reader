@@ -1,12 +1,12 @@
 /*
 On startup, connect to the "rss_bridge" app.
 */
-console.log("RSS Native Messaging Extension started");
-let port = browser.runtime.connectNative("rss_bridge");
+console.log("Infinite RSS Reader Extension started");
+let port = browser.runtime.connectNative("infrss");
 
 // Reconnection logic
 function connect() {
-    port = browser.runtime.connectNative("rss_bridge");
+    port = browser.runtime.connectNative("infrss");
     port.onMessage.addListener(handleMessage);
     port.onDisconnect.addListener(handleDisconnect);
 }
