@@ -58,7 +58,7 @@ This tool bridges the gap between Thunderbird's robust RSS management and modern
 **macOS / Linux (Homebrew):**
 
 ```bash
-brew install AwesomeDog/tap/infrss
+brew install AwesomeDog/tap/infrss && infrss
 ```
 
 **Windows (Winget):**
