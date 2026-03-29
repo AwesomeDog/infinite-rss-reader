@@ -1,0 +1,9 @@
+{
+  "name": "infrss",
+  "description": "Infinite RSS Reader for Thunderbird",
+  "path": "INSTALL_PATH",
+  "type": "stdio",
+  "allowed_extensions": [
+    "infrss@awesomedog.github.io"
+  ]
+}
