@@ -345,10 +345,9 @@
         }
         .install-options {
             display: flex;
-            gap: 2rem;
+            gap: 0;
             align-items: stretch;
             margin-top: 3.5rem;
-            position: relative;
         }
         .install-card {
             flex: 1;
@@ -380,7 +379,7 @@
             text-transform: uppercase;
             box-shadow: 0 5px 15px rgba(105, 111, 199, 0.4);
         }
-        .install-card-header { text-align: center; margin-bottom: 2.5rem; }
+        .install-card-header { text-align: center; margin-bottom: 2.5rem; min-height: 130px; display: flex; flex-direction: column; justify-content: flex-start; }
         .install-card-header .icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
         .install-card h3 { font-size: 1.4rem; margin-bottom: 0.5rem; }
         .install-card p { color: var(--text-muted); font-size: 0.95rem; }
@@ -422,7 +421,7 @@
         /* Download Options Grid */
         .download-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 0.85rem;
             margin-top: auto;
         }
@@ -455,7 +454,9 @@
         /* Divider between options */
         .divider {
             display: flex; align-items: center; justify-content: center;
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            flex-shrink: 0;
+            width: 48px;
+            margin: 0 -24px;
             z-index: 2;
         }
         .divider-text {
@@ -482,18 +483,15 @@
 
         /* Responsive Design */
         @media (max-width: 900px) {
-            .install-options { flex-direction: column; gap: 3rem; }
-            .divider { position: relative; top: auto; left: auto; transform: none; margin: -1.5rem 0; }
-            .download-grid { grid-template-columns: repeat(3, 1fr); }
-            .dl-btn.full-width { grid-column: auto; }
+            .install-options { flex-direction: column; gap: 0; }
+            .divider { width: auto; margin: -1.5rem 0; }
+            .install-card-header { min-height: auto; }
         }
         @media (max-width: 768px) {
             nav { padding: 1.5rem 0; }
             .nav-right a:not(.nav-cta) { display: none; }
             h1 { font-size: 2.8rem; }
             .features-grid { grid-template-columns: repeat(2, 1fr); }
-            .download-grid { grid-template-columns: repeat(2, 1fr); }
-            .dl-btn.full-width { grid-column: 1 / -1; }
         }
         @media (max-width: 500px) {
             h1 { font-size: 2.2rem; }
@@ -501,6 +499,7 @@
             .btn { width: 100%; }
             .features-grid { grid-template-columns: 1fr; }
             .install-card { padding: 2.5rem 1.5rem; }
+            .download-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -602,7 +601,9 @@
 
                 <div class="prerequisites-card glass-card">
                     <div class="prereq-item">
-                        <span class="icon">📧</span>
+                        <span class="icon">
+                            <img src="https://www.thunderbird.net/media/img/thunderbird/favicon-196.png" alt="Thunderbird" width="32" height="32" style="border-radius: 6px;">
+                        </span>
                         <div class="prereq-info">
                             <h4>Mozilla Thunderbird</h4>
                             <p>Tested with version 147.0.2</p>
@@ -631,7 +632,7 @@
                         <div class="code-blocks">
                             <div class="code-row">
                                 <span class="code-label">macOS / Linux</span>
-                                <code class="code-snippet">brew install AwesomeDog/tap/infrss</code>
+                                <code class="code-snippet">brew install AwesomeDog/tap/infrss && infrss</code>
                             </div>
                             <div class="code-row">
                                 <span class="code-label">Windows</span>
@@ -667,7 +668,7 @@
                                 <span class="dl-text">Windows <span class="dl-sub">x64</span></span>
                             </a>
                             
-                            <a href="https://github.com/AwesomeDog/infinite-rss-reader/releases/latest/download/infrss-linux-amd64" class="dl-btn full-width" target="_blank" rel="noopener noreferrer" aria-label="Download for Linux">
+                            <a href="https://github.com/AwesomeDog/infinite-rss-reader/releases/latest/download/infrss-linux-amd64" class="dl-btn" target="_blank" rel="noopener noreferrer" aria-label="Download for Linux">
                                 <span class="dl-icon">
                                     <svg viewBox="0 0 24 24"><path d="M20.581 19.049c-.55-.446-.336-1.431-.907-1.917.553-3.365-.997-6.331-2.845-8.232-1.551-1.595-1.051-3.147-1.051-4.49 0-2.146-.881-4.41-3.55-4.41-2.853 0-3.635 2.38-3.663 3.738-.02 1.002-.073 1.92-.66 2.808C6.522 8.56 5.264 10.702 4.613 13.39c-.243.997-.122 1.99-.122 2.989 0 .984-.353 1.781-.353 1.781s1.108-.168 1.87.19c1.005.47 1.678.852 2.867.585.39-.088.556-.406 1.095-.501.722-.127 1.297.468 2.07.468.776 0 1.33-.609 2.064-.462.523.105.684.426 1.065.517 1.195.288 1.893-.1 2.854-.584.752-.38 1.835-.187 1.835-.187s-.343-.725-.277-2.088zM8.57 17.397c-.79.064-1.554-.37-1.692-.969-.138-.6.358-1.177 1.147-1.24.79-.065 1.554.37 1.692.968.139.6-.357 1.178-1.147 1.241zm5.104-.18c-.79.064-1.554-.37-1.692-.968-.139-.6.357-1.178 1.147-1.241.79-.065 1.554.37 1.692.968.138.6-.358 1.177-1.147 1.241z"/></svg>
                                 </span>

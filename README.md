@@ -127,7 +127,7 @@ Alternatively, if installed via a package manager:
 
 ```bash
 # macOS / Linux
-brew upgrade AwesomeDog/tap/infrss
+brew upgrade AwesomeDog/tap/infrss && infrss
 
 # Windows
 winget upgrade AwesomeDog.InfRSS
