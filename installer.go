@@ -372,7 +372,11 @@ func installManifest(binaryPath string) error {
 }
 
 // waitForEnter waits for the user to press Enter.
+// Skipped in silent mode (--install) for non-interactive package manager installs.
 func waitForEnter() {
+	if silentInstall {
+		return
+	}
 	fmt.Print("Press Enter to exit...")
 	buf := make([]byte, 1)
 	os.Stdin.Read(buf)

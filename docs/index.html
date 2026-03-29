@@ -317,6 +317,32 @@
             max-width: 950px;
             margin: 0 auto;
         }
+        .prerequisites-card {
+            padding: 1.5rem 2.5rem;
+            margin: 0 auto 3rem;
+            max-width: 700px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        .prereq-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .prereq-item .icon {
+            font-size: 2rem;
+        }
+        .prereq-info h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+            color: #fff;
+        }
+        .prereq-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
         .install-options {
             display: flex;
             gap: 2rem;
@@ -572,6 +598,23 @@
                 <div class="section-header">
                     <h2>Get started in seconds.</h2>
                     <p>Choose your preferred way to install and start reading.</p>
+                </div>
+
+                <div class="prerequisites-card glass-card">
+                    <div class="prereq-item">
+                        <span class="icon">📧</span>
+                        <div class="prereq-info">
+                            <h4>Mozilla Thunderbird</h4>
+                            <p>Tested with version 147.0.2</p>
+                        </div>
+                    </div>
+                    <div class="prereq-item">
+                        <span class="icon">💻</span>
+                        <div class="prereq-info">
+                            <h4>Operating System</h4>
+                            <p>Windows, macOS, or Linux</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="install-options">

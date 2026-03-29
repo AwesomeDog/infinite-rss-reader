@@ -11,6 +11,10 @@ import (
 // version is injected at build time via -ldflags "-X main.version=..."
 var version = "dev"
 
+// silentInstall suppresses interactive prompts (waitForEnter) when true.
+// Set by --install flag for non-interactive package manager installs (brew, winget).
+var silentInstall bool
+
 func main() {
 	// --help
 	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
@@ -18,6 +22,7 @@ func main() {
 		fmt.Println()
 		fmt.Println("Usage:")
 		fmt.Println("  infrss              Run installer (double-click)")
+		fmt.Println("  infrss --install    Run installer non-interactively (brew/winget)")
 		fmt.Println("  infrss --version    Print version and exit")
 		fmt.Println("  infrss --help       Print this help and exit")
 		fmt.Println()
@@ -33,6 +38,13 @@ func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
 		fmt.Printf("infrss %s\n", version)
 		os.Exit(0)
+	}
+
+	// --install (non-interactive, for package managers like brew/winget)
+	if len(os.Args) > 1 && os.Args[1] == "--install" {
+		silentInstall = true
+		runInstallMode()
+		return
 	}
 
 	// Bridge mode: Thunderbird passes the extension ID as an argument.

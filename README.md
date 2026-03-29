@@ -50,7 +50,7 @@ This tool bridges the gap between Thunderbird's robust RSS management and modern
 
 ### Prerequisites
 
-- **Mozilla Thunderbird** (version 91.0 or higher)
+- **Mozilla Thunderbird** (tested with version 147.0.2)
 - **Operating System**: Windows, macOS, or Linux
 
 ### Option A: Package Manager (Recommended)
