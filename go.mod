@@ -1,6 +1,6 @@
 module github.com/AwesomeDog/infinite-rss-reader
 
-go 1.22
+go 1.26.0
 
 require (
 	github.com/mmcdole/gofeed v1.3.0

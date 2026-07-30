@@ -160,7 +160,7 @@ infrss --help       Print help and exit
 
 ## Building from Source
 
-Requires Go 1.22+.
+Requires Go 1.26+.
 
 ```bash
 git clone https://github.com/AwesomeDog/infinite-rss-reader.git

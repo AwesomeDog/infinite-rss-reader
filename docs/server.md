@@ -8,7 +8,7 @@ The backend stays in one `main` package. It has no service layer, repository lay
 
 ## Build and run
 
-Go 1.22 or later is required.
+Go 1.26 or later is required.
 
 ```bash
 go build -o bin/infrss-server ./cmd/infrss-server
