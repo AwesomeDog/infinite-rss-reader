@@ -1,0 +1,16 @@
+<opml version="1.0" xmlns:fz="urn:forumzilla:">
+  <head>
+    <title>Thunderbird OPML Export - Blogs &amp; News Feeds</title>
+    <dateCreated>Fri, 10 Jul 2026 10:45:51 GMT</dateCreated>
+  </head>
+  <body>
+    <outline title="Tech">
+      <outline title="Hugging Face - Blog">
+        <outline type="rss" title="Hugging Face - Blog" text="Hugging Face - Blog" version="RSS" fz:quickMode="false" xmlUrl="https://huggingface.co/blog/feed.xml" htmlUrl="https://huggingface.co/blog"/></outline>
+      <outline title="Product Hunt — The best new products, every day">
+        <outline type="rss" title="Product Hunt — The best new products, every day" text="Product Hunt — The best new products, every day" version="RSS" fz:quickMode="false" xmlUrl="https://www.producthunt.com/feed" htmlUrl="https://www.producthunt.com/feed"/></outline></outline>
+    <outline title="Investment">
+      <outline title="IMI Daily">
+        <outline type="rss" title="IMI Daily" text="IMI Daily" version="RSS" fz:quickMode="false" xmlUrl="https://www.imidaily.com/feed/" htmlUrl="https://www.imidaily.com/"/></outline></outline>
+  </body>
+</opml>
