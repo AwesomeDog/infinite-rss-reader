@@ -169,9 +169,9 @@ cd infinite-rss-reader
 # Cross-compile for all platforms:
 VERSION=$(git describe --tags --always --dirty)
 LDFLAGS="-X main.version=${VERSION}"
-GOOS=darwin  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/infrss-macos-arm64 .
-GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-windows.exe .
-GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-linux-amd64 .
+GOOS=darwin  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/infrss-macos-arm64 ./cmd/infrss
+GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-windows.exe ./cmd/infrss
+GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-linux-amd64 ./cmd/infrss
 
 # Release
 git tag v0.0.1   # or whatever the next version is

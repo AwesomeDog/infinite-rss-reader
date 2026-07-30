@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	infrssassets "github.com/AwesomeDog/infinite-rss-reader"
 )
 
 const (
@@ -199,12 +201,12 @@ func buildXPI() ([]byte, error) {
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
 
-	err := fs.WalkDir(addonFS, "add-on", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(infrssassets.AddonFS, "add-on", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
 
-		data, err := addonFS.ReadFile(path)
+		data, err := infrssassets.AddonFS.ReadFile(path)
 		if err != nil {
 			return err
 		}
@@ -310,7 +312,7 @@ func installXPI(profilePath string, xpiData []byte) error {
 func installManifest(binaryPath string) error {
 	// Build manifest from template
 	var manifest map[string]interface{}
-	if err := json.Unmarshal(manifestTemplate, &manifest); err != nil {
+	if err := json.Unmarshal(infrssassets.ManifestTemplate, &manifest); err != nil {
 		return fmt.Errorf("invalid manifest template: %w", err)
 	}
 	manifest["path"] = binaryPath

@@ -117,14 +117,16 @@ Same functionality as `rss_bridge.py` + `install.py`. Refer to existing Python c
 
 ```
 infinite-rss-reader/
-├── main.go              # Entry point, mode detection, flag-free dispatch
-├── bridge.go            # BridgeState, channels, mutex
-├── messaging.go         # Native messaging read/write (stdin/stdout)
-├── server.go            # HTTP server, 5 route handlers
-├── installer.go         # Install mode: profile detection, xpi build, manifest registration
-├── xpisync.go           # Bridge mode: silent .xpi version check + update
-├── logging.go           # Log setup + old log cleanup
-├── embed.go             # //go:embed declarations
+├── cmd/
+│   └── infrss/
+│       ├── main.go      # Entry point, mode detection, flag-free dispatch
+│       ├── bridge.go    # BridgeState, channels, mutex
+│       ├── messaging.go # Native messaging read/write (stdin/stdout)
+│       ├── server.go    # HTTP server, 5 route handlers
+│       ├── installer.go # Install mode: profile detection, xpi build, manifest registration
+│       ├── xpisync.go   # Bridge mode: silent .xpi version check + update
+│       └── logging.go   # Log setup + old log cleanup
+├── embed.go             # Embedded resources exposed to cmd/infrss
 ├── embed/               # Embedded static resources
 │   ├── index.html       # Web UI (embedded)
 │   └── infrss.json      # Native messaging manifest template (embedded)
@@ -150,7 +152,7 @@ A single `var version = "dev"` in `main.go`, injected at build time via `-ldflag
 
 ```bash
 VERSION=$(git describe --tags --always --dirty)
-go build -ldflags "-X main.version=${VERSION}" -o infrss .
+go build -ldflags "-X main.version=${VERSION}" -o infrss ./cmd/infrss
 ```
 
 - `infrss --version` prints `infrss <version>` and exits.
@@ -166,13 +168,13 @@ VERSION=$(git describe --tags --always --dirty)
 LDFLAGS="-X main.version=${VERSION}"
 
 # macOS (Apple Silicon)
-GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/infrss-macos-arm64 .
+GOOS=darwin GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/infrss-macos-arm64 ./cmd/infrss
 
 # Windows
-GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-windows.exe .
+GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-windows.exe ./cmd/infrss
 
 # Linux
-GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-linux-amd64 .
+GOOS=linux GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-linux-amd64 ./cmd/infrss
 ```
 
 ## Distribution

@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	infrssassets "github.com/AwesomeDog/infinite-rss-reader"
 )
 
 const httpPort = 7654
@@ -64,7 +66,7 @@ func sendJSONError(w http.ResponseWriter, message string, status int) {
 // handleIndex serves the embedded index.html.
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(indexHTML)
+	w.Write(infrssassets.IndexHTML)
 }
 
 // handleGetUnread requests fresh unread items from the extension.
