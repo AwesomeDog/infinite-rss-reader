@@ -76,7 +76,7 @@ It is not stored as `/Tech/Hugging Face - Blog/Hugging Face - Blog`.
 
 ## Feed refresh
 
-Feeds are fetched sequentially with one shared HTTP client. Each request has a 15-second timeout, must return a 2xx status, and may contain at most 10 MiB. `gofeed` parses RSS and Atom.
+Feeds are shuffled before each refresh and fetched in batches of up to 10 with one shared HTTP client. Requests in a batch run concurrently; the next batch starts 10 seconds after the whole batch finishes. Each request has a 30-second timeout, must return a 2xx status, and may contain at most 10 MiB. `gofeed` parses RSS and Atom.
 
 The first refresh starts immediately after the listener is bound. Later refreshes use `--refresh`. A mutex prevents overlapping refreshes.
 

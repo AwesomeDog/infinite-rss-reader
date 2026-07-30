@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -24,9 +25,20 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const maxFeedSize = 10 << 20
+const (
+	maxFeedSize        = 10 << 20
+	feedBatchSize      = 10
+	feedBatchGap       = 10 * time.Second
+	feedRequestTimeout = 30 * time.Second
+)
 
 type Feed struct{ URL, FolderPath string }
+
+type downloadResult struct {
+	feed   Feed
+	parsed *gofeed.Feed
+	err    error
+}
 
 type outline struct {
 	Text     string    `xml:"text,attr"`
@@ -88,7 +100,7 @@ func main() {
 	defer listener.Close()
 	log.Printf("serving %d feeds on http://%s", len(feeds), *listen)
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := &http.Client{Timeout: feedRequestTimeout}
 	go func() {
 		refreshFeeds(db, feeds, client)
 		for range time.Tick(*interval) {
@@ -275,21 +287,47 @@ func loadFeeds(filename string) ([]Feed, error) {
 func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client) {
 	refreshMu.Lock()
 	defer refreshMu.Unlock()
-	for _, feed := range feeds {
-		parsed, err := downloadFeed(client, feed.URL)
-		if err != nil {
-			log.Printf("refresh %s: %v", feed.URL, err)
-			continue
+
+	queue := append([]Feed(nil), feeds...)
+	rand.Shuffle(len(queue), func(i, j int) {
+		queue[i], queue[j] = queue[j], queue[i]
+	})
+
+	for start := 0; start < len(queue); start += feedBatchSize {
+		end := min(start+feedBatchSize, len(queue))
+		batch := queue[start:end]
+		results := make([]downloadResult, len(batch))
+
+		var batchWG sync.WaitGroup
+		for i, feed := range batch {
+			batchWG.Add(1)
+			go func(i int, feed Feed) {
+				defer batchWG.Done()
+				parsed, err := downloadFeed(client, feed.URL)
+				results[i] = downloadResult{feed: feed, parsed: parsed, err: err}
+			}(i, feed)
 		}
-		now := time.Now().UTC()
-		for _, item := range parsed.Items {
-			if item == nil {
+		batchWG.Wait()
+
+		for _, result := range results {
+			if result.err != nil {
+				log.Printf("refresh %s: %v", result.feed.URL, result.err)
 				continue
 			}
-			if err := storeItem(db, feed, item, now); err != nil {
-				log.Printf("store %s: %v", feed.URL, err)
-				break
+			now := time.Now().UTC()
+			for _, item := range result.parsed.Items {
+				if item == nil {
+					continue
+				}
+				if err := storeItem(db, result.feed, item, now); err != nil {
+					log.Printf("store %s: %v", result.feed.URL, err)
+					break
+				}
 			}
+		}
+
+		if end < len(queue) {
+			time.Sleep(feedBatchGap)
 		}
 	}
 }
