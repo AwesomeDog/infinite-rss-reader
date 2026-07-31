@@ -22,7 +22,7 @@ go build -o bin/infrss-server ./cmd/infrss-server
 | `--listen` | `127.0.0.1:7655` | HTTP listen address |
 | `--refresh` | `100m` | Feed refresh interval; must be positive |
 
-The database is always `./infrss-server.db` in the working directory. The OPML file is read once at startup; restart the server after changing it.
+Runtime state is stored in `$XDG_STATE_HOME/infrss-server`, defaulting to `~/.local/state/infrss-server`. The database is `infrss-server.db` in that directory, and the actual directory is printed at startup. The OPML file is read once at startup; restart the server after changing it.
 
 ## Files
 
@@ -39,11 +39,12 @@ The original Thunderbird backend is unchanged. Both binaries embed the same phys
 The server starts in this order:
 
 1. Parse and validate flags.
-2. Open `./infrss-server.db` and create the schema.
-3. Parse the OPML file.
-4. Bind the HTTP listener.
-5. Start the initial feed refresh in the background.
-6. Serve HTTP while later refreshes run on the configured interval.
+2. Create the state and log directories and open a new log file.
+3. Open `infrss-server.db` in the state directory and create the schema.
+4. Parse the OPML file.
+5. Bind the HTTP listener.
+6. Start the initial feed refresh in the background.
+7. Serve HTTP while later refreshes run on the configured interval.
 
 The listener is bound before any feed is downloaded. A slow feed or an HTTP error such as `503 Service Unavailable` does not delay port `7655` or the reader UI.
 
@@ -54,6 +55,8 @@ Startup errors are logged unchanged and stop the process. API errors pass throug
 ```
 
 There are no error classes or error-code abstractions.
+
+Each start creates a timestamped log file under `$XDG_STATE_HOME/infrss-server/logs`. Log files are not rotated, truncated, or automatically removed. Each feed request and user HTTP request records its URL and response status with a timestamp; a feed request that receives no HTTP response uses status `0`.
 
 ## OPML
 
@@ -114,7 +117,7 @@ The database contains one `feed_entries` table. It stores the feed URL, folder p
 
 `read_at IS NULL` means unread. A non-null value is the Unix time when the item was marked read. Indexes cover unread items and folder queries. SQLite uses a 5-second busy timeout and one open connection.
 
-The OPML file controls only which feeds are fetched during the current process. Removing a feed from OPML does not delete its stored items. The server does not reconcile subscriptions, migrate old schemas, or rewrite legacy rows. A schema change requires a fresh `./infrss-server.db`.
+The OPML file controls only which feeds are fetched during the current process. Removing a feed from OPML does not delete its stored items. The server does not reconcile subscriptions, migrate old schemas, or rewrite legacy rows. A schema change requires a fresh `infrss-server.db` in the state directory.
 
 ## HTTP API
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -15,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,20 +27,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const (
-	maxFeedSize        = 10 << 20
-	feedBatchSize      = 10
-	feedBatchGap       = 10 * time.Second
-	feedRequestTimeout = 30 * time.Second
-)
+const maxFeedSize, feedBatchSize = 10 << 20, 10
+const feedBatchGap, feedRequestTimeout = 10 * time.Second, 30 * time.Second
 
 type Feed struct{ URL, FolderPath string }
-
-type downloadResult struct {
-	feed   Feed
-	parsed *gofeed.Feed
-	err    error
-}
 
 type outline struct {
 	Text     string    `xml:"text,attr"`
@@ -59,29 +51,25 @@ type apiItem struct {
 
 type apiHandler func(*http.Request) (any, error)
 
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
 const schemaSQL = `PRAGMA busy_timeout = 5000;
-CREATE TABLE IF NOT EXISTS feed_entries (
- id INTEGER PRIMARY KEY AUTOINCREMENT, feed_url TEXT NOT NULL, folder_path TEXT NOT NULL,
- source_id TEXT, entry_key TEXT NOT NULL, content_hash TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
- author_name TEXT NOT NULL DEFAULT '', permalink TEXT NOT NULL DEFAULT '', content_html TEXT NOT NULL DEFAULT '',
- published_at INTEGER NOT NULL, fetched_at INTEGER NOT NULL, read_at INTEGER, UNIQUE (feed_url, entry_key));
+CREATE TABLE IF NOT EXISTS feed_entries (id INTEGER PRIMARY KEY AUTOINCREMENT, feed_url TEXT NOT NULL, folder_path TEXT NOT NULL,
+ source_id TEXT, entry_key TEXT NOT NULL, content_hash TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', author_name TEXT NOT NULL DEFAULT '',
+ permalink TEXT NOT NULL DEFAULT '', content_html TEXT NOT NULL DEFAULT '', published_at INTEGER NOT NULL, fetched_at INTEGER NOT NULL,
+ read_at INTEGER, UNIQUE (feed_url, entry_key));
 CREATE INDEX IF NOT EXISTS idx_feed_entries_unread ON feed_entries (published_at DESC, id DESC) WHERE read_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_feed_entries_folder ON feed_entries (folder_path, published_at DESC);`
 
-const upsertSQL = `INSERT INTO feed_entries
- (feed_url, folder_path, source_id, entry_key, content_hash, title, author_name, permalink, content_html, published_at, fetched_at)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(feed_url, entry_key) DO UPDATE SET
- fetched_at=excluded.fetched_at,
- folder_path=CASE WHEN feed_entries.content_hash<>excluded.content_hash THEN excluded.folder_path ELSE feed_entries.folder_path END,
+const upsertSQL = `INSERT INTO feed_entries (feed_url, folder_path, source_id, entry_key, content_hash, title, author_name, permalink,
+ content_html, published_at, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(feed_url, entry_key) DO UPDATE SET
+ fetched_at=excluded.fetched_at, folder_path=CASE WHEN feed_entries.content_hash<>excluded.content_hash THEN excluded.folder_path ELSE feed_entries.folder_path END,
  source_id=CASE WHEN feed_entries.content_hash<>excluded.content_hash THEN excluded.source_id ELSE feed_entries.source_id END,
  published_at=CASE WHEN feed_entries.content_hash<>excluded.content_hash THEN excluded.published_at ELSE feed_entries.published_at END,
- content_hash=excluded.content_hash, title=excluded.title, author_name=excluded.author_name,
- permalink=excluded.permalink, content_html=excluded.content_html`
-
-const selectSQL = `SELECT id, title, author_name, published_at, folder_path, content_html, permalink FROM feed_entries`
-
-var refreshMu sync.Mutex
+ content_hash=excluded.content_hash, title=excluded.title, author_name=excluded.author_name, permalink=excluded.permalink, content_html=excluded.content_html`
 
 func main() {
 	opmlPath := flag.String("opml", "", "Thunderbird OPML file (required)")
@@ -92,23 +80,28 @@ func main() {
 		log.Fatal("--opml is required and --refresh must be positive")
 	}
 
-	db := must(openDB("./infrss-server.db"))
+	stateDir := must(serverStateDir())
+	fmt.Printf("using state directory: %s\n", stateDir)
+	logFile := must(setupLogging(stateDir))
+	defer logFile.Close()
+
+	db := must(openDB(filepath.Join(stateDir, "infrss-server.db")))
 	defer db.Close()
 	feeds := must(loadFeeds(*opmlPath))
 
 	listener := must(net.Listen("tcp", *listen))
 	defer listener.Close()
+	fmt.Printf("serving %d feeds on http://%s\n", len(feeds), *listen)
 	log.Printf("serving %d feeds on http://%s", len(feeds), *listen)
 
-	client := &http.Client{Timeout: feedRequestTimeout}
-	go func() {
+	go func(client *http.Client) {
 		refreshFeeds(db, feeds, client)
 		for range time.Tick(*interval) {
 			refreshFeeds(db, feeds, client)
 		}
-	}()
+	}(&http.Client{Timeout: feedRequestTimeout})
 
-	log.Print(http.Serve(listener, routes(db)))
+	log.Print(http.Serve(listener, logRequests(routes(db))))
 }
 
 func routes(db *sql.DB) http.Handler {
@@ -124,11 +117,7 @@ func routes(db *sql.DB) http.Handler {
 		items, err := queryItems(db, "WHERE read_at IS NULL")
 		return map[string]any{"status": "success", "data": items, "count": len(items)}, err
 	}))
-	mux.Handle("GET /api/rss/item", apiHandler(func(r *http.Request) (any, error) {
-		id, err := requestID(r)
-		if err != nil {
-			return nil, err
-		}
+	mux.Handle("GET /api/rss/item", withItemID(func(id int64) (any, error) {
 		items, err := queryItems(db, "WHERE id = ?", id)
 		if err != nil {
 			return nil, err
@@ -146,24 +135,16 @@ func routes(db *sql.DB) http.Handler {
 		if folder != "/" {
 			folder = strings.TrimRight(folder, "/")
 		}
-		pattern := escapeLike(strings.TrimRight(folder, "/")) + "/%"
-		items, err := queryItems(db,
-			`WHERE folder_path = ? OR folder_path LIKE ? ESCAPE '\'`, folder, pattern)
-		return map[string]any{
-			"status": "success", "data": items, "count": len(items), "folderPath": folder,
-		}, err
+		items, err := queryItems(db, `WHERE folder_path = ? OR folder_path LIKE ? ESCAPE '\'`, folder,
+			strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.TrimRight(folder, "/"))+"/%")
+		return map[string]any{"status": "success", "data": items, "count": len(items), "folderPath": folder}, err
 	}))
-	mux.Handle("GET /api/rss/mark-read", apiHandler(func(r *http.Request) (any, error) {
-		id, err := requestID(r)
-		if err != nil {
-			return nil, err
-		}
+	mux.Handle("GET /api/rss/mark-read", withItemID(func(id int64) (any, error) {
 		result, err := db.Exec(`UPDATE feed_entries SET read_at=? WHERE id=?`, time.Now().Unix(), id)
 		if err != nil {
 			return nil, err
 		}
-		count, _ := result.RowsAffected()
-		if count == 0 {
+		if count, _ := result.RowsAffected(); count == 0 {
 			return nil, fmt.Errorf("Item not found")
 		}
 		return map[string]any{"status": "success"}, nil
@@ -182,11 +163,64 @@ func (handler apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, http.StatusOK, value)
 }
 
+func withItemID(handler func(int64) (any, error)) apiHandler {
+	return func(r *http.Request) (any, error) {
+		id, err := strconv.ParseInt(r.URL.Query().Get("itemId"), 10, 64)
+		if err != nil || id < 1 {
+			return nil, fmt.Errorf("itemId must be a positive integer")
+		}
+		return handler(id)
+	}
+}
+
+func (w *statusWriter) WriteHeader(status int) {
+	if w.status == 0 {
+		w.status = status
+		w.ResponseWriter.WriteHeader(status)
+	}
+}
+
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writer := &statusWriter{ResponseWriter: w}
+		next.ServeHTTP(writer, r)
+		log.Printf("user method=%s uri=%q status=%d", r.Method, r.URL.RequestURI(), cmp.Or(writer.status, http.StatusOK))
+	})
+}
+
 func must[T any](value T, err error) T {
 	if err != nil {
 		log.Fatal(err)
 	}
 	return value
+}
+
+func serverStateDir() (string, error) {
+	base := os.Getenv("XDG_STATE_HOME")
+	if base == "" || !filepath.IsAbs(base) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		base = filepath.Join(home, ".local", "state")
+	}
+	dir := filepath.Join(base, "infrss-server")
+	return dir, os.MkdirAll(dir, 0700)
+}
+
+func setupLogging(stateDir string) (*os.File, error) {
+	logDir := filepath.Join(stateDir, "logs")
+	if err := os.MkdirAll(logDir, 0700); err != nil {
+		return nil, err
+	}
+	name := fmt.Sprintf("infrss-server-%s-p%d.log", time.Now().Format("20060102T150405.000000000-0700"), os.Getpid())
+	file, err := os.OpenFile(filepath.Join(logDir, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return nil, err
+	}
+	log.SetOutput(file)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	return file, nil
 }
 
 func openDB(filename string) (*sql.DB, error) {
@@ -203,7 +237,8 @@ func openDB(filename string) (*sql.DB, error) {
 }
 
 func queryItems(db *sql.DB, where string, args ...any) ([]apiItem, error) {
-	rows, err := db.Query(selectSQL+" "+where+" ORDER BY published_at DESC, id DESC", args...)
+	rows, err := db.Query(`SELECT id, title, author_name, published_at, folder_path, content_html, permalink FROM feed_entries `+
+		where+" ORDER BY published_at DESC, id DESC", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -212,8 +247,7 @@ func queryItems(db *sql.DB, where string, args ...any) ([]apiItem, error) {
 	for rows.Next() {
 		var item apiItem
 		var published int64
-		if err := rows.Scan(&item.ID, &item.Subject, &item.Author, &published,
-			&item.FolderPath, &item.Body, &item.Link); err != nil {
+		if err := rows.Scan(&item.ID, &item.Subject, &item.Author, &published, &item.FolderPath, &item.Body, &item.Link); err != nil {
 			return nil, err
 		}
 		item.Date = time.Unix(published, 0).UTC().Format(time.RFC3339)
@@ -222,22 +256,10 @@ func queryItems(db *sql.DB, where string, args ...any) ([]apiItem, error) {
 	return items, rows.Err()
 }
 
-func requestID(r *http.Request) (int64, error) {
-	id, err := strconv.ParseInt(r.URL.Query().Get("itemId"), 10, 64)
-	if err != nil || id < 1 {
-		return 0, fmt.Errorf("itemId must be a positive integer")
-	}
-	return id, nil
-}
-
 func sendJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
-}
-
-func escapeLike(value string) string {
-	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
 }
 
 func loadFeeds(filename string) ([]Feed, error) {
@@ -253,29 +275,20 @@ func loadFeeds(filename string) ([]Feed, error) {
 		return nil, err
 	}
 
-	feeds := make([]Feed, 0)
-	seen := make(map[string]bool)
+	feeds, seen := make([]Feed, 0), make(map[string]bool)
 	var walk func([]outline, string)
 	walk = func(nodes []outline, parent string) {
 		for _, node := range nodes {
-			name := strings.TrimSpace(node.Title)
-			if name == "" {
-				name = strings.TrimSpace(node.Text)
-			}
-			name = strings.Trim(name, "/")
-			feedURL := strings.TrimSpace(node.XMLURL)
-			path := parent
-			if feedURL == "" && name != "" {
-				path += "/" + name
-			}
-			if feedURL != "" {
-				if seen[feedURL] {
-					log.Printf("duplicate feed URL %q ignored", feedURL)
-				} else {
-					seen[feedURL] = true
-					folder := "/" + strings.TrimPrefix(path, "/")
-					feeds = append(feeds, Feed{feedURL, folder})
+			name, feedURL, path := strings.Trim(cmp.Or(strings.TrimSpace(node.Title), strings.TrimSpace(node.Text)), "/"), strings.TrimSpace(node.XMLURL), parent
+			if feedURL == "" {
+				if name != "" {
+					path += "/" + name
 				}
+			} else if seen[feedURL] {
+				log.Printf("duplicate feed URL %q ignored", feedURL)
+			} else {
+				seen[feedURL] = true
+				feeds = append(feeds, Feed{feedURL, "/" + strings.TrimPrefix(path, "/")})
 			}
 			walk(node.Children, path)
 		}
@@ -285,42 +298,36 @@ func loadFeeds(filename string) ([]Feed, error) {
 }
 
 func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client) {
-	refreshMu.Lock()
-	defer refreshMu.Unlock()
-
 	queue := append([]Feed(nil), feeds...)
-	rand.Shuffle(len(queue), func(i, j int) {
-		queue[i], queue[j] = queue[j], queue[i]
-	})
+	rand.Shuffle(len(queue), func(i, j int) { queue[i], queue[j] = queue[j], queue[i] })
 
 	for start := 0; start < len(queue); start += feedBatchSize {
 		end := min(start+feedBatchSize, len(queue))
 		batch := queue[start:end]
-		results := make([]downloadResult, len(batch))
+		parsed, errs := make([]*gofeed.Feed, len(batch)), make([]error, len(batch))
 
 		var batchWG sync.WaitGroup
+		batchWG.Add(len(batch))
 		for i, feed := range batch {
-			batchWG.Add(1)
 			go func(i int, feed Feed) {
 				defer batchWG.Done()
-				parsed, err := downloadFeed(client, feed.URL)
-				results[i] = downloadResult{feed: feed, parsed: parsed, err: err}
+				parsed[i], errs[i] = downloadFeed(client, feed.URL)
 			}(i, feed)
 		}
 		batchWG.Wait()
 
-		for _, result := range results {
-			if result.err != nil {
-				log.Printf("refresh %s: %v", result.feed.URL, result.err)
+		for i, feed := range batch {
+			if errs[i] != nil {
+				log.Printf("refresh %s: %v", feed.URL, errs[i])
 				continue
 			}
 			now := time.Now().UTC()
-			for _, item := range result.parsed.Items {
+			for _, item := range parsed[i].Items {
 				if item == nil {
 					continue
 				}
-				if err := storeItem(db, result.feed, item, now); err != nil {
-					log.Printf("store %s: %v", result.feed.URL, err)
+				if err := storeItem(db, feed, item, now); err != nil {
+					log.Printf("store %s: %v", feed.URL, err)
 					break
 				}
 			}
@@ -335,9 +342,11 @@ func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client) {
 func downloadFeed(client *http.Client, feedURL string) (*gofeed.Feed, error) {
 	response, err := client.Get(feedURL)
 	if err != nil {
+		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
 		return nil, err
 	}
 	defer response.Body.Close()
+	log.Printf("rss method=GET url=%q status=%d", feedURL, response.StatusCode)
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, fmt.Errorf("HTTP %s", response.Status)
 	}
@@ -364,10 +373,8 @@ func storeItem(db *sql.DB, feed Feed, item *gofeed.Item, now time.Time) error {
 		body = item.Description
 	}
 	published := now.Unix()
-	if item.PublishedParsed != nil {
-		published = item.PublishedParsed.Unix()
-	} else if item.UpdatedParsed != nil {
-		published = item.UpdatedParsed.Unix()
+	if date := cmp.Or(item.PublishedParsed, item.UpdatedParsed); date != nil {
+		published = date.Unix()
 	}
 
 	sourceID := strings.TrimSpace(item.GUID)
@@ -377,10 +384,8 @@ func storeItem(db *sql.DB, feed Feed, item *gofeed.Item, now time.Time) error {
 	} else if link != "" {
 		key = "link:" + normalizeLink(link)
 	}
-	hash := digest(strings.Join([]string{title, author, link, body}, "\x00"))
-	_, err := db.Exec(upsertSQL, feed.URL, feed.FolderPath,
-		sql.NullString{String: sourceID, Valid: sourceID != ""}, key, hash,
-		title, author, link, body, published, now.Unix())
+	_, err := db.Exec(upsertSQL, feed.URL, feed.FolderPath, sql.NullString{String: sourceID, Valid: sourceID != ""}, key,
+		digest(strings.Join([]string{title, author, link, body}, "\x00")), title, author, link, body, published, now.Unix())
 	return err
 }
 
@@ -394,6 +399,4 @@ func normalizeLink(link string) string {
 	return parsed.String()
 }
 
-func digest(value string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(value)))
-}
+func digest(value string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(value))) }
