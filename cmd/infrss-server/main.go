@@ -28,8 +28,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const maxFeedSize, feedBatchSize = 10 << 20, 10
-const feedBatchGap, feedRequestTimeout = 10 * time.Second, 30 * time.Second
+const maxFeedSize, feedRequestTimeout = 10 << 20, 30 * time.Second
 
 var version = "dev"
 var feedOrder = make(map[string]int)
@@ -80,14 +79,16 @@ func main() {
 	opmlPath := flag.String("opml", "", "Thunderbird OPML file (required)")
 	listen := flag.String("listen", "127.0.0.1:7655", "HTTP listen address")
 	interval := flag.Duration("refresh", 100*time.Minute, "feed refresh interval")
+	batchSize := flag.Int("batch-size", 10, "feeds per fetch batch")
+	batchGap := flag.Duration("batch-gap", 10*time.Second, "delay between fetch batches")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("infrss-server %s\n", version)
 		return
 	}
-	if *opmlPath == "" || *interval <= 0 {
-		log.Fatal("--opml is required and --refresh must be positive")
+	if *opmlPath == "" || *interval <= 0 || *batchSize <= 0 || *batchGap < 0 {
+		log.Fatal("--opml is required; --refresh and --batch-size must be positive; --batch-gap must be non-negative")
 	}
 
 	stateDir := must(serverStateDir())
@@ -105,9 +106,9 @@ func main() {
 	log.Printf("serving %d feeds on http://%s", len(feeds), *listen)
 
 	go func(client *http.Client) {
-		refreshFeeds(db, feeds, client)
+		refreshFeeds(db, feeds, client, *batchSize, *batchGap)
 		for range time.Tick(*interval) {
-			refreshFeeds(db, feeds, client)
+			refreshFeeds(db, feeds, client, *batchSize, *batchGap)
 		}
 	}(&http.Client{Timeout: feedRequestTimeout})
 
@@ -310,12 +311,12 @@ func loadFeeds(filename string) ([]Feed, error) {
 	return feeds, nil
 }
 
-func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client) {
+func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client, batchSize int, batchGap time.Duration) {
 	queue := append([]Feed(nil), feeds...)
 	rand.Shuffle(len(queue), func(i, j int) { queue[i], queue[j] = queue[j], queue[i] })
 
-	for start := 0; start < len(queue); start += feedBatchSize {
-		end := min(start+feedBatchSize, len(queue))
+	for start := 0; start < len(queue); start += batchSize {
+		end := min(start+batchSize, len(queue))
 		batch := queue[start:end]
 		parsed, errs := make([]*gofeed.Feed, len(batch)), make([]error, len(batch))
 
@@ -347,7 +348,7 @@ func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client) {
 		}
 
 		if end < len(queue) {
-			time.Sleep(feedBatchGap)
+			time.Sleep(batchGap)
 		}
 	}
 }
