@@ -332,7 +332,7 @@ func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client, batchSize int, 
 
 		for i, feed := range batch {
 			if errs[i] != nil {
-				log.Printf("refresh %s: %v", feed.URL, errs[i])
+				log.Printf("rss err url=%q error=%q", feed.URL, errs[i])
 				continue
 			}
 			now := time.Now().UTC()
@@ -341,7 +341,7 @@ func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client, batchSize int, 
 					continue
 				}
 				if err := storeItem(db, feed, item, now); err != nil {
-					log.Printf("store %s: %v", feed.URL, err)
+					log.Printf("store err %s: %v", feed.URL, err)
 					break
 				}
 			}

@@ -144,7 +144,7 @@ Alternatively, if installed via a package manager:
 brew upgrade AwesomeDog/tap/infrss && infrss
 
 # Windows
-winget upgrade AwesomeDog.InfRSS
+winget upgrade AwesomeDog.infrss-server
 ```
 
 ## Technical Architecture
