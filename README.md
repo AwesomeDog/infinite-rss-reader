@@ -13,6 +13,7 @@ While technically a Thunderbird extension, the primary goal of this project is t
 ## Table of Contents
 
 - [How It Works](#how-it-works)
+- [infrss vs infrss-server](#infrss-vs-infrss-server)
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -29,6 +30,15 @@ This tool bridges the gap between Thunderbird's robust RSS management and modern
 1. **You run Thunderbird** as your RSS aggregator (it handles fetching, storage, and filters).
 2. **Infinite RSS Reader** is a single binary (`infrss`) that acts as both installer and bridge — no dependencies.
 3. **You open `http://localhost:7654`** in your favorite browser to read your news in a distraction-free infinite stream.
+
+## infrss vs infrss-server
+
+Both binaries serve the same Infinite RSS Reader interface, but they use different backends:
+
+- **`infrss` — Thunderbird companion**: Thunderbird fetches and stores the feeds. `infrss` connects through the extension and Native Messaging, serves the reader at `http://localhost:7654`, and syncs read state back to Thunderbird.
+- **`infrss-server` — standalone reader**: No Thunderbird or extension is required. It reads subscriptions from an OPML file, fetches feeds itself, stores articles and read state in SQLite, and serves the reader at `http://localhost:7655`.
+- **Prefer `infrss` for most users**: Thunderbird provides full feed and folder management, including adding, editing, and removing subscriptions.
+- **Choose `infrss-server`** only if you need a self-contained RSS service backed by OPML and local SQLite. It has no built-in UI or API for adding, editing, or deleting feeds; subscriptions are loaded from OPML at startup. Start it with `infrss-server --opml /path/to/feeds.opml`; see [the server documentation](docs/server.md) for configuration and API details.
 
 ## Features
 
@@ -58,13 +68,17 @@ This tool bridges the gap between Thunderbird's robust RSS management and modern
 **macOS / Linux (Homebrew):**
 
 ```bash
-brew install AwesomeDog/tap/infrss && infrss
+# for classic infrss
+brew tap AwesomeDog/tap && brew trust AwesomeDog/tap && brew install AwesomeDog/tap/infrss && infrss
+# for standalone infrss-server
+brew tap AwesomeDog/tap && brew trust AwesomeDog/tap && brew install AwesomeDog/tap/infrss-server
 ```
 
 **Windows (Winget):**
 
 ```bash
-winget install AwesomeDog.InfRSS
+# for standalone infrss-server
+winget install AwesomeDog.infrss-server
 ```
 
 ### Option B: Manual Download
