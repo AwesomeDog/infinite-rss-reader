@@ -21,6 +21,7 @@ go build -o bin/infrss-server ./cmd/infrss-server
 | `--opml` | none | Thunderbird OPML file; required |
 | `--listen` | `127.0.0.1:7655` | HTTP listen address |
 | `--refresh` | `100m` | Feed refresh interval; must be positive |
+| `--version` | `false` | Print the build version and exit |
 
 Runtime state is stored in `$XDG_STATE_HOME/infrss-server`, defaulting to `~/.local/state/infrss-server`. The database is `infrss-server.db` in that directory, and the actual directory is printed at startup. The OPML file is read once at startup; restart the server after changing it.
 

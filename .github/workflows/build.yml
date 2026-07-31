@@ -34,6 +34,10 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-windows.exe    ./cmd/infrss
           GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-linux-amd64    ./cmd/infrss
 
+          GOOS=darwin  GOARCH=arm64 go build -ldflags "${LDFLAGS}" -o bin/infrss-server-macos-arm64 ./cmd/infrss-server
+          GOOS=windows GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-server-windows.exe ./cmd/infrss-server
+          GOOS=linux   GOARCH=amd64 go build -ldflags "${LDFLAGS}" -o bin/infrss-server-linux-amd64 ./cmd/infrss-server
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -30,6 +30,8 @@ import (
 const maxFeedSize, feedBatchSize = 10 << 20, 10
 const feedBatchGap, feedRequestTimeout = 10 * time.Second, 30 * time.Second
 
+var version = "dev"
+
 type Feed struct{ URL, FolderPath string }
 
 type outline struct {
@@ -75,7 +77,12 @@ func main() {
 	opmlPath := flag.String("opml", "", "Thunderbird OPML file (required)")
 	listen := flag.String("listen", "127.0.0.1:7655", "HTTP listen address")
 	interval := flag.Duration("refresh", 100*time.Minute, "feed refresh interval")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("infrss-server %s\n", version)
+		return
+	}
 	if *opmlPath == "" || *interval <= 0 {
 		log.Fatal("--opml is required and --refresh must be positive")
 	}
