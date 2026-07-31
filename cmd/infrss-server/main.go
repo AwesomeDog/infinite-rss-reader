@@ -397,8 +397,15 @@ func storeItem(db *sql.DB, feed Feed, item *gofeed.Item, now time.Time) error {
 	} else if link != "" {
 		key = "link:" + normalizeLink(link)
 	}
-	_, err := db.Exec(upsertSQL, feed.URL, feed.FolderPath, sql.NullString{String: sourceID, Valid: sourceID != ""}, key,
-		digest(strings.Join([]string{title, author, link, body}, "\x00")), title, author, link, body, published, now.Unix())
+	hash := digest(strings.Join([]string{title, author, link, body}, "\x00"))
+	var duplicate bool
+	err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM feed_entries WHERE feed_url=? AND entry_key=? AND content_hash=?)`,
+		feed.URL, key, hash).Scan(&duplicate)
+	if err != nil || duplicate {
+		return err
+	}
+	_, err = db.Exec(upsertSQL, feed.URL, feed.FolderPath, sql.NullString{String: sourceID, Valid: sourceID != ""}, key,
+		hash, title, author, link, body, published, now.Unix())
 	return err
 }
 
