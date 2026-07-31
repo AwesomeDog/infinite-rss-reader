@@ -145,7 +145,7 @@ An item has this shape:
 }
 ```
 
-Lists are sorted by `published_at DESC, id DESC`. Folder matching uses the exact path or `folder/%`, so `/Tech` does not match `/Technology`. The backend does not paginate because the UI slices items in the browser.
+Unread items follow OPML feed order, with `published_at DESC, id DESC` inside each feed; items absent from the current OPML come last. Other lists remain sorted by `published_at DESC, id DESC`. Folder matching uses the exact path or `folder/%`, so `/Tech` does not match `/Technology`. The backend does not paginate because the UI slices items in the browser.
 
 `mark-read` remains a GET endpoint to preserve compatibility with the existing HTML.
 

@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +32,7 @@ const maxFeedSize, feedBatchSize = 10 << 20, 10
 const feedBatchGap, feedRequestTimeout = 10 * time.Second, 30 * time.Second
 
 var version = "dev"
+var feedOrder = make(map[string]int)
 
 type Feed struct{ URL, FolderPath string }
 
@@ -43,6 +45,7 @@ type outline struct {
 
 type apiItem struct {
 	ID         int64  `json:"id"`
+	FeedURL    string `json:"-"`
 	Subject    string `json:"subject"`
 	Author     string `json:"author"`
 	Date       string `json:"date"`
@@ -122,6 +125,8 @@ func routes(db *sql.DB) http.Handler {
 
 	mux.Handle("GET /api/rss/unread", apiHandler(func(r *http.Request) (any, error) {
 		items, err := queryItems(db, "WHERE read_at IS NULL")
+		rank := func(item apiItem) int { return cmp.Or(feedOrder[item.FeedURL], len(feedOrder)+1) }
+		slices.SortStableFunc(items, func(a, b apiItem) int { return cmp.Compare(rank(a), rank(b)) })
 		return map[string]any{"status": "success", "data": items, "count": len(items)}, err
 	}))
 	mux.Handle("GET /api/rss/item", withItemID(func(id int64) (any, error) {
@@ -244,7 +249,7 @@ func openDB(filename string) (*sql.DB, error) {
 }
 
 func queryItems(db *sql.DB, where string, args ...any) ([]apiItem, error) {
-	rows, err := db.Query(`SELECT id, title, author_name, published_at, folder_path, content_html, permalink FROM feed_entries `+
+	rows, err := db.Query(`SELECT id, feed_url, title, author_name, published_at, folder_path, content_html, permalink FROM feed_entries `+
 		where+" ORDER BY published_at DESC, id DESC", args...)
 	if err != nil {
 		return nil, err
@@ -254,7 +259,7 @@ func queryItems(db *sql.DB, where string, args ...any) ([]apiItem, error) {
 	for rows.Next() {
 		var item apiItem
 		var published int64
-		if err := rows.Scan(&item.ID, &item.Subject, &item.Author, &published, &item.FolderPath, &item.Body, &item.Link); err != nil {
+		if err := rows.Scan(&item.ID, &item.FeedURL, &item.Subject, &item.Author, &published, &item.FolderPath, &item.Body, &item.Link); err != nil {
 			return nil, err
 		}
 		item.Date = time.Unix(published, 0).UTC().Format(time.RFC3339)
@@ -295,6 +300,7 @@ func loadFeeds(filename string) ([]Feed, error) {
 				log.Printf("duplicate feed URL %q ignored", feedURL)
 			} else {
 				seen[feedURL] = true
+				feedOrder[feedURL] = len(feeds) + 1
 				feeds = append(feeds, Feed{feedURL, "/" + strings.TrimPrefix(path, "/")})
 			}
 			walk(node.Children, path)
