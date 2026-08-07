@@ -203,6 +203,9 @@ func logRequests(next http.Handler) http.Handler {
 
 func must[T any](value T, err error) T {
 	if err != nil {
+		if log.Writer() != os.Stderr {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		log.Fatal(err)
 	}
 	return value
