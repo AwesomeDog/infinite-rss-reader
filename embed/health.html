@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Feed Health - Infinite RSS Reader</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.28.4/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.18/dayjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/antd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css"/>
+    <style>
+        .page { max-width: 1180px; margin: auto; padding: 24px; }
+        .header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 24px; }
+        @media (max-width: 720px) {
+            .header { align-items: flex-start; flex-direction: column; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background: #141414; }
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+    const {Alert, Button, ConfigProvider, Statistic, Table, Tag, Typography, theme} = antd;
+    const {Text, Title} = Typography;
+    const rank = {error: 0, pending: 1, healthy: 2};
+    const formatTime = value => value ? value.slice(0, 19).replaceAll("/", "-") : "-";
+    const statusTag = state => state === "healthy" ? <Tag color="success">Healthy</Tag> :
+        state === "error" ? <Tag color="error">Needs attention</Tag> : <Tag>Waiting</Tag>;
+
+    const columns = [
+        {title: "Feed", render: (_, item) => <><Text strong>{item.title}</Text><Text type="secondary" ellipsis={{tooltip: item.url}}>{item.url}</Text></>},
+        {title: "Folder", dataIndex: "folderPath", responsive: ["md"]},
+        {title: "Status", dataIndex: "state", width: 130, render: statusTag},
+        {title: "Failures (24h)", dataIndex: "failures24h", width: 120, responsive: ["md"]},
+        {title: "Last checked", dataIndex: "lastAttempt", width: 180, responsive: ["lg"], render: formatTime},
+        {title: "Last successful", dataIndex: "lastSuccess", width: 180, responsive: ["xl"], render: formatTime},
+        {title: "Details", dataIndex: "error", responsive: ["md"], render: value => value ? <Text type="danger">{value}</Text> : "-"},
+    ];
+
+    function App() {
+        const [result, setResult] = React.useState(null);
+        const [error, setError] = React.useState("");
+
+        React.useEffect(() => {
+            const load = async () => {
+                try {
+                    const response = await fetch("/api/health", {cache: "no-store"});
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    setResult(await response.json());
+                    setError("");
+                } catch (e) {
+                    setResult(null);
+                    setError(e.message || String(e));
+                }
+            };
+            load();
+            const timer = setInterval(load, 5000);
+            return () => clearInterval(timer);
+        }, []);
+
+        const summary = result?.summary || {};
+        const rows = (result?.data || []).slice().sort((a, b) => rank[a.state] - rank[b.state]);
+        return <ConfigProvider theme={{algorithm: matchMedia("(prefers-color-scheme: dark)").matches ? theme.darkAlgorithm : theme.defaultAlgorithm}}>
+            <main className="page">
+                <header className="header">
+                    <div><Title level={3}>Feed Health</Title><Text type="secondary">Current fetch status, updated automatically</Text></div>
+                    <Button href="/">Reader</Button>
+                </header>
+                {error && <Alert type="error" showIcon message={error} style={{marginBottom: 20}}/>}
+                <section className="stats">
+                    <Statistic title="Total" value={summary.total}/>
+                    <Statistic title="Healthy" value={summary.healthy}/>
+                    <Statistic title="Needs attention" value={summary.error}/>
+                    <Statistic title="Waiting" value={summary.pending}/>
+                </section>
+                <Table rowKey="url" columns={columns} dataSource={rows} loading={!result && !error} pagination={false} tableLayout="fixed"/>
+            </main>
+        </ConfigProvider>;
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

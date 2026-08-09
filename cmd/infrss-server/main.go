@@ -33,7 +33,7 @@ const maxFeedSize, feedRequestTimeout = 10 << 20, 30 * time.Second
 var version = "dev"
 var feedOrder = make(map[string]int)
 
-type Feed struct{ URL, FolderPath string }
+type Feed struct{ URL, FolderPath, Title string }
 
 type outline struct {
 	Text     string    `xml:"text,attr"`
@@ -112,10 +112,10 @@ func main() {
 		}
 	}(&http.Client{Timeout: feedRequestTimeout})
 
-	log.Print(http.Serve(listener, logRequests(routes(db))))
+	log.Print(http.Serve(listener, logRequests(routes(db, feeds, filepath.Join(stateDir, "logs")))))
 }
 
-func routes(db *sql.DB) http.Handler {
+func routes(db *sql.DB, feeds []Feed, logDir string) http.Handler {
 	mux := http.NewServeMux()
 	page := func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -123,6 +123,7 @@ func routes(db *sql.DB) http.Handler {
 	}
 	mux.HandleFunc("GET /{$}", page)
 	mux.HandleFunc("GET /index.html", page)
+	registerHealthRoutes(mux, feeds, logDir)
 
 	mux.Handle("GET /api/rss/unread", apiHandler(func(r *http.Request) (any, error) {
 		items, err := queryItems(db, "WHERE read_at IS NULL")
@@ -305,7 +306,7 @@ func loadFeeds(filename string) ([]Feed, error) {
 			} else {
 				seen[feedURL] = true
 				feedOrder[feedURL] = len(feeds) + 1
-				feeds = append(feeds, Feed{feedURL, "/" + strings.TrimPrefix(path, "/")})
+				feeds = append(feeds, Feed{URL: feedURL, FolderPath: "/" + strings.TrimPrefix(path, "/"), Title: name})
 			}
 			walk(node.Children, path)
 		}
