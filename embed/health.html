@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.28.4/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.18/dayjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/antd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@6/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css"/>
     <style>
         .page { max-width: 1180px; margin: auto; padding: 24px; }
@@ -46,6 +47,24 @@
     function App() {
         const [result, setResult] = React.useState(null);
         const [error, setError] = React.useState("");
+        const chart = React.useRef(null);
+
+        React.useEffect(() => {
+            if (!result) return;
+            const instance = echarts.init(chart.current, matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : null);
+            instance.setOption({
+                backgroundColor: "transparent",
+                title: {text: "Rss requests per minute", textStyle: {fontSize: 14, fontWeight: "normal"}},
+                grid: {left: 40, right: 10, top: 40, bottom: 55},
+                xAxis: {type: "time"},
+                yAxis: {type: "value", minInterval: 1},
+                dataZoom: [{type: "inside"}, {type: "slider"}],
+                series: [{type: "bar", data: Object.entries(result.frequency).map(([time, count]) => [time.replaceAll("/", "-"), count])}],
+            });
+            const resize = () => instance.resize();
+            addEventListener("resize", resize);
+            return () => { removeEventListener("resize", resize); instance.dispose(); };
+        }, [result]);
 
         React.useEffect(() => {
             const load = async () => {
@@ -79,6 +98,7 @@
                     <Statistic title="Needs attention" value={summary.error}/>
                     <Statistic title="Waiting" value={summary.pending}/>
                 </section>
+                <div ref={chart} style={{height: 240, marginBottom: 24}}/>
                 <Table rowKey="url" columns={columns} dataSource={rows} loading={!result && !error} pagination={false} tableLayout="fixed"/>
             </main>
         </ConfigProvider>;

@@ -31,18 +31,19 @@ func registerHealthRoutes(mux *http.ServeMux, feeds []Feed, logDir string) {
 	})
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		items, summary, err := readFeedHealth(feeds, logDir)
+		items, summary, frequency, err := readFeedHealth(feeds, logDir)
 		if err != nil {
 			log.Print(err)
 			sendJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "error": err.Error()})
 			return
 		}
-		sendJSON(w, http.StatusOK, map[string]any{"status": "success", "data": items, "summary": summary})
+		sendJSON(w, http.StatusOK, map[string]any{"status": "success", "data": items, "summary": summary, "frequency": frequency})
 	})
 }
 
-func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, error) {
+func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, map[string]int, error) {
 	items, byURL := make([]feedHealth, len(feeds)), make(map[string]int, len(feeds))
+	frequency := make(map[string]int)
 	cutoff := time.Now().Add(-24 * time.Hour).Format("2006/01/02 15:04:05.000000")
 	for i, feed := range feeds {
 		title := feed.Title
@@ -55,7 +56,7 @@ func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, 
 
 	entries, err := os.ReadDir(logDir)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".log" {
@@ -63,7 +64,7 @@ func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, 
 		}
 		file, err := os.Open(filepath.Join(logDir, entry.Name()))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
@@ -76,12 +77,13 @@ func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, 
 			if n, _ := fmt.Sscanf(line[26:], " rss method=GET url=%q status=%d error=%q", &url, &code, &message); n < 2 {
 				continue
 			}
+			at := line[:26]
+			frequency[at[:16]]++
 			index, ok := byURL[url]
 			if !ok {
 				continue
 			}
 			status := &items[index]
-			at := line[:26]
 			if (code < 200 || code >= 300) && at >= cutoff {
 				status.Failures24h++
 			}
@@ -104,7 +106,7 @@ func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, 
 		scanErr := scanner.Err()
 		file.Close()
 		if scanErr != nil {
-			return nil, nil, scanErr
+			return nil, nil, nil, scanErr
 		}
 	}
 
@@ -112,5 +114,5 @@ func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, 
 	for _, item := range items {
 		summary[item.State]++
 	}
-	return items, summary, nil
+	return items, summary, frequency, nil
 }
