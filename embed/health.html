@@ -79,8 +79,6 @@
                 }
             };
             load();
-            const timer = setInterval(load, 5000);
-            return () => clearInterval(timer);
         }, []);
 
         const summary = result?.summary || {};
@@ -88,7 +86,7 @@
         return <ConfigProvider theme={{algorithm: matchMedia("(prefers-color-scheme: dark)").matches ? theme.darkAlgorithm : theme.defaultAlgorithm}}>
             <main className="page">
                 <header className="header">
-                    <div><Title level={3}>Feed Health</Title><Text type="secondary">Current fetch status, updated automatically</Text></div>
+                    <div><Title level={3}>Feed Health</Title><Text type="secondary">Current fetch status</Text></div>
                     <Button href="/">Reader</Button>
                 </header>
                 {error && <Alert type="error" showIcon message={error} style={{marginBottom: 20}}/>}
