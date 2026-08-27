@@ -106,9 +106,10 @@ func main() {
 	log.Printf("serving %d feeds on http://%s", len(feeds), *listen)
 
 	go func(client *http.Client) {
-		refreshFeeds(db, feeds, client, *batchSize, *batchGap)
-		for range time.Tick(*interval) {
+		ticker := time.NewTicker(*interval)
+		for {
 			refreshFeeds(db, feeds, client, *batchSize, *batchGap)
+			<-ticker.C
 		}
 	}(&http.Client{Timeout: feedRequestTimeout})
 
