@@ -112,10 +112,10 @@ macOS / Linux (Homebrew):
 
 ```bash
 # Thunderbird companion (infrss)
-brew tap AwesomeDog/tap && brew trust AwesomeDog/tap && brew install AwesomeDog/tap/infrss && infrss
+brew install AwesomeDog/tap/infrss && infrss
 
 # Standalone server (infrss-server)
-brew tap AwesomeDog/tap && brew trust AwesomeDog/tap && brew install AwesomeDog/tap/infrss-server
+brew install AwesomeDog/tap/infrss-server
 ```
 
 Windows (Winget):

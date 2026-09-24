@@ -214,5 +214,5 @@ Thunderbird auto-launches `~/.local/bin/infrss`. User just opens `http://localho
 | Channel | Platforms | Update Method | User Action |
 |---------|-----------|---------------|-------------|
 | **GitHub Releases** | All | Download new binary, double-click it | Binary auto-detects version mismatch and overwrites old installation |
-| **Homebrew** | macOS, Linux | `brew upgrade infrss` | Run one command |
+| **Homebrew** | macOS, Linux | `brew upgrade AwesomeDog/tap/infrss` | Run one command |
 | **Winget** | Windows | `winget upgrade` | Run one command |
