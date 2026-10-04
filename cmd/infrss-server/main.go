@@ -81,10 +81,26 @@ func main() {
 	interval := flag.Duration("refresh", 100*time.Minute, "feed refresh interval")
 	batchSize := flag.Int("batch-size", 10, "feeds per fetch batch")
 	batchGap := flag.Duration("batch-gap", 10*time.Second, "delay between fetch batches")
+	normalizePath := flag.String("normalize-opml", "",
+		"normalize an OPML file for clean git diffs; writes to stdout and exits")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("infrss-server %s\n", version)
+		return
+	}
+	if *normalizePath != "" {
+		// Never touches the input: output goes to stdout, the summary to stderr.
+		f, err := os.Open(*normalizePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		out, err := normalizeOPML(f)
+		if err != nil {
+			log.Fatalf("%s: %v", *normalizePath, err)
+		}
+		os.Stdout.Write(out)
 		return
 	}
 	if *opmlPath == "" || *interval <= 0 || *batchSize <= 0 || *batchGap < 0 {

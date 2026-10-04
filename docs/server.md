@@ -21,15 +21,34 @@ go build -o bin/infrss-server ./cmd/infrss-server
 | `--opml` | none | Thunderbird OPML file; required |
 | `--listen` | `127.0.0.1:7655` | HTTP listen address |
 | `--refresh` | `100m` | Feed refresh interval; must be positive |
+| `--normalize-opml` | none | Normalize an OPML file for clean git diffs; writes to stdout and exits |
 | `--version` | `false` | Print the build version and exit |
 
 Runtime state is stored in `$XDG_STATE_HOME/infrss-server`, defaulting to `~/.local/state/infrss-server`. The database is `infrss-server.db` in that directory, and the actual directory is printed at startup. The OPML file is read once at startup; restart the server after changing it.
+
+## Normalizing an OPML file
+
+Every Thunderbird export of the same subscriptions comes out slightly different: feeds are written in folder order, duplicate subscriptions accumulate, and each feed carries an `fz:options` attribute that embeds the last update timestamp. That makes a version-controlled `feeds.opml` diff noisy for no reason.
+
+`--normalize-opml` rewrites an export into a canonical form: outlines sorted by title, duplicate feeds removed, `fz:options` dropped. Two exports of the same subscriptions then produce identical bytes, so a diff only shows subscriptions you actually added or removed.
+
+```bash
+infrss-server --normalize-opml feeds.opml > feeds.norm.opml && mv feeds.norm.opml feeds.opml
+```
+
+Output always goes to stdout and the source file is never touched, so redirect to a second file and move it over — `> feeds.opml` truncates `feeds.opml` before the tool ever reads it.
+
+The pass is idempotent: normalizing an already normalized file returns the same bytes. Two things worth knowing:
+
+- Only `fz:options` is dropped, because it carries a timestamp. `fz:quickMode` is stable and is kept. Both attributes are Thunderbird-private and optional on import, and a missing `fz:options` falls back to the account default — so re-importing a normalized file works, at the cost of any per-feed refresh interval you had customized.
+- Sorting reorders the file, and feed order in the OPML is the order feeds appear in the reader.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
 | `cmd/infrss-server/main.go` | CLI, OPML parsing, SQLite, feed refresh, and HTTP API |
+| `cmd/infrss-server/normalize.go` | `--normalize-opml`: canonical OPML output for clean diffs |
 | `embed/server_assets.go` | Embeds the existing `embed/index.html` |
 | `go.mod`, `go.sum` | Add `gofeed` and the pure Go SQLite driver |
 

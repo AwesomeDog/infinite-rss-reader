@@ -216,6 +216,14 @@ infrss-server --opml /path/to/feeds.opml
 - Serves the exact same infinite-scroll UI plus a JSON API.
 - Subscriptions come from OPML at startup (no add/edit/delete UI or API).
 
+### Keep your OPML in git
+
+Track `feeds.opml` in a repository and Thunderbird's export makes every commit noisy — feed order follows the folder tree, duplicate subscriptions pile up, and each feed carries an `fz:options` attribute holding its last update timestamp. `--normalize-opml` rewrites an export into a canonical form so diffs only show real changes:
+
+```bash
+infrss-server --normalize-opml feeds.opml > feeds.norm.opml && mv feeds.norm.opml feeds.opml
+```
+
 Full configuration, flags and API reference: [`docs/server.md`](docs/server.md).
 
 ---
