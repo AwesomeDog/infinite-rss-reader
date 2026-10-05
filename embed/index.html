@@ -175,9 +175,8 @@
         Layout, Divider, List, Card, Typography, Spin, Tag, Button, ConfigProvider,
         theme, Statistic, FloatButton, message, Tooltip, Switch, Space, Modal, Tree, Input
     } = antd;
-    const {DirectoryTree} = Tree;
-    const {Content} = Layout;
-    const {Text} = Typography;
+    const {DirectoryTree} = Tree, {Content} = Layout, {Text} = Typography;
+    const APP_NAME = "Infinite RSS Reader";
 
     const prefersDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const useStoredState = (key, parse) => {
@@ -204,42 +203,31 @@
 
     // Build folder tree from items with counts
     const buildFolderTree = (items) => {
-        const folderCounts = {};
-        items.forEach(item => {
-            if (item.folderPath) {
-                folderCounts[item.folderPath] = (folderCounts[item.folderPath] || 0) + 1;
-            }
-        });
-        
-        const tree = {};
-        Object.keys(folderCounts).forEach(path => {
-            const parts = path.split('/').filter(Boolean);
-            let current = tree;
-            let accumulatedPath = '';
-            parts.forEach((part) => {
-                accumulatedPath += '/' + part;
-                if (!current[part]) current[part] = { children: {}, fullPath: accumulatedPath };
-                current = current[part].children;
+        const c = {};   // fullPath -> direct item count
+        const root = {}; // nested { [name]: {children, fullPath} }
+        items.forEach(({folderPath}) => {
+            if (!folderPath) return;
+            c[folderPath] = (c[folderPath] || 0) + 1;
+            let cur = root, acc = '';
+            folderPath.split('/').filter(Boolean).forEach((part) => {
+                acc += '/' + part;
+                if (!cur[part]) cur[part] = {children: {}, fullPath: acc};
+                cur = cur[part].children;
             });
         });
-        
-        const toTreeData = (obj) => {
-            return Object.entries(obj).map(([name, data]) => {
-                const key = data.fullPath || name;
-                const children = toTreeData(data.children);
-                const directCount = folderCounts[data.fullPath] || 0;
-                const childrenCount = children.reduce((sum, child) => sum + (child.count || 0), 0);
-                return {
-                    title: name,
-                    key: key,
-                    fullPath: data.fullPath,
-                    count: directCount + childrenCount,
-                    children: children.length ? children : undefined
-                };
-            });
-        };
-        
-        return toTreeData(tree);
+
+        const walk = (obj) => Object.entries(obj).map(([name, data]) => {
+            const children = walk(data.children);
+            return {
+                title: name,
+                key: data.fullPath || name,
+                fullPath: data.fullPath,
+                count: (c[data.fullPath] || 0) + children.reduce((sum, child) => sum + child.count, 0),
+                children: children.length ? children : undefined
+            };
+        });
+
+        return walk(root);
     };
 
     const FolderTreeModal = ({ open, onClose, treeData }) => {
@@ -377,27 +365,21 @@
             return () => observer.disconnect();
         }, [item.id, onBecameVisible]);
 
-        const handleScreenshot = async () => {
+        const handleScreenshot = () => {
             const card = itemRef.current?.querySelector(".ant-card");
             const target = screenshotMode ? card : contentRef.current;
             if (!target) return message.error("No content to screenshot.");
-            try {
-                const blob = await htmlToImage.toBlob(target, {
-                    backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff',
-                    imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-                    skipFonts: true,
-                    allowTaint: true
-                });
-                
-                if (blob) {
-                    await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
-                    message.success("Screenshot copied!");
-                } else {
-                    message.error("Failed.");
-                }
-            } catch (e) {
-                message.error("Screenshot failed.");
-            }
+            htmlToImage.toBlob(target, {
+                backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff',
+                imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                skipFonts: true,
+                allowTaint: true
+            })
+                .then(blob => blob
+                    ? navigator.clipboard.write([new ClipboardItem({"image/png": blob})])
+                        .then(() => message.success("Screenshot copied!"))
+                    : message.error("Failed."))
+                .catch(() => message.error("Screenshot failed."));
         };
 
         const sanitizedBody = useMemo(() => (item.body ? sanitizeHtml(item.body) : ""), [item.body]);
@@ -437,34 +419,27 @@
         );
     });
 
+    // Resolve items from URL params: single item > folder+unread > folder > all unread
+    const fetchItems = async () => {
+        if (PARAMS.itemId) {
+            const item = await api.item(PARAMS.itemId);
+            return item ? [item] : [];
+        }
+        if (!PARAMS.folder) return api.unread();
+        if (!PARAMS.unread) return api.folderItems(PARAMS.folder);
+        const all = await api.unread();
+        return all.filter(({folderPath}) => folderPath.startsWith(PARAMS.folder));
+    };
+
     const useRssData = () => {
         const [allItems, setAllItems] = useState([]);
         const [loading, setLoading] = useState(true);
 
         useEffect(() => {
             let isMounted = true;
-            (async () => {
-                try {
-                    let items = [];
-                    if (PARAMS.itemId) {
-                        const item = await api.item(PARAMS.itemId);
-                        items = item ? [item] : [];
-                    } else if (PARAMS.folder && PARAMS.unread) {
-                        const allUnread = await api.unread();
-                        items = allUnread.filter(item => 
-                            item.folderPath === PARAMS.folder || 
-                            item.folderPath.startsWith(PARAMS.folder)
-                        );
-                    } else if (PARAMS.folder) {
-                        items = await api.folderItems(PARAMS.folder);
-                    } else {
-                        items = await api.unread();
-                    }
-                    if (isMounted) setAllItems(items);
-                } finally {
-                    if (isMounted) setLoading(false);
-                }
-            })();
+            fetchItems()
+                .then(items => { if (isMounted) setAllItems(items); })
+                .finally(() => { if (isMounted) setLoading(false); });
             return () => { isMounted = false; };
         }, []);
 
@@ -503,23 +478,16 @@
             if (processedRef.current.has(itemId)) return;
             processedRef.current.add(itemId);
             batchQueueRef.current.push(itemId);
+            if (timerRef.current) return;
 
-            if (!timerRef.current) {
-                timerRef.current = setTimeout(() => {
-                    timerRef.current = null;
-                    const itemsToAdd = batchQueueRef.current;
-                    batchQueueRef.current = [];
-                    
-                    if (itemsToAdd.length > 0) {
-                        itemsToAdd.forEach(id => api.markRead(id));
-                        setReadItems(prev => {
-                            const next = new Set(prev);
-                            itemsToAdd.forEach(id => next.add(id));
-                            return next;
-                        });
-                    }
-                }, 50);
-            }
+            timerRef.current = setTimeout(() => {
+                timerRef.current = null;
+                const batch = batchQueueRef.current;
+                batchQueueRef.current = [];
+                if (!batch.length) return;
+                batch.forEach(api.markRead);
+                setReadItems(prev => new Set([...prev, ...batch]));
+            }, 50);
         }, []);
 
         return { readItems, handleBecameVisible };
@@ -556,22 +524,11 @@
 
         // --- Dynamic Title Update ---
         useEffect(() => {
-            const {itemId, folder, unread} = PARAMS;
-
-            let title = "Infinite RSS Reader";
-            
-            if (itemId) {
-                if (allItems.length > 0 && allItems[0].subject) {
-                    title = `${allItems[0].subject} - Infinite RSS Reader`;
-                } else {
-                    title = `Loading Item... - Infinite RSS Reader`;
-                }
-            } else if (folder) {
-                const folderName = folder.split('/').filter(Boolean).pop() || folder;
-                title = `${folderName} ${unread ? '(Unread)' : ''} - Infinite RSS Reader`;
-            }
-            
-            document.title = title;
+            const prefix =
+                PARAMS.itemId ? allItems[0]?.subject || "Loading Item..." :
+                PARAMS.folder ? `${PARAMS.folder.split('/').filter(Boolean).pop() || PARAMS.folder}${PARAMS.unread ? " (Unread)" : ""}` :
+                "";
+            document.title = prefix ? `${prefix} - ${APP_NAME}` : APP_NAME;
         }, [allItems]);
 
         return (
