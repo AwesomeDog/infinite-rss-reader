@@ -291,8 +291,7 @@
             cardMode,
             toggleCardMode,
             showStats,
-            setShowFolderModal,
-            setShowBlockWordsModal
+            openModal
         }) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
               styles={{header: {textAlign: "center"}, body: {textAlign: "center"}}}>
@@ -318,10 +317,10 @@
                             checked={cardMode === "standard"} onChange={toggleCardMode}/>
                 </Tooltip>
                 <Tooltip title="Browse Folders">
-                    <Button size="small" onClick={() => setShowFolderModal(true)} style={{width: "100%"}}>📁 Folders</Button>
+                    <Button size="small" onClick={() => openModal("folder")} style={{width: "100%"}}>📁 Folders</Button>
                 </Tooltip>
                 <Tooltip title="Manage block words">
-                    <Button size="small" onClick={() => setShowBlockWordsModal(true)} style={{width: "100%"}}>🚫 Block</Button>
+                    <Button size="small" onClick={() => openModal("block")} style={{width: "100%"}}>🚫 Block</Button>
                 </Tooltip>
             </div>
         </Card>
@@ -538,8 +537,8 @@
 
         // --- UI States ---
         const [showStats, setShowStats] = useState(false);
-        const [showFolderModal, setShowFolderModal] = useState(false);
-        const [showBlockWordsModal, setShowBlockWordsModal] = useState(false);
+        const [modal, setModal] = useState(null); // "folder" | "block" | null
+        const closeModal = () => setModal(null);
 
         // --- Core Business Logic ---
         const { allItems, loading, folderTreeData } = useRssData();
@@ -588,10 +587,9 @@
                                     toggleTheme={toggleTheme} screenshotMode={screenshotMode}
                                     toggleScreenshotMode={toggleScreenshotMode} cardMode={cardMode}
                                     toggleCardMode={toggleCardMode} showStats={showStats}
-                                    setShowFolderModal={setShowFolderModal}
-                                    setShowBlockWordsModal={setShowBlockWordsModal}/>
-                        <FolderTreeModal open={showFolderModal} onClose={() => setShowFolderModal(false)} treeData={folderTreeData}/>
-                        <BlockWordsModal open={showBlockWordsModal} onClose={() => setShowBlockWordsModal(false)} blockWords={blockWords} setBlockWords={setBlockWords}/>
+                                    openModal={setModal}/>
+                        <FolderTreeModal open={modal === "folder"} onClose={closeModal} treeData={folderTreeData}/>
+                        <BlockWordsModal open={modal === "block"} onClose={closeModal} blockWords={blockWords} setBlockWords={setBlockWords}/>
                         <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             cardMode={cardMode} isRead={readItems.has(item.id)} blockWordList={blockWordList}/>}/>
