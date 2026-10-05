@@ -231,7 +231,7 @@
         return toTreeData(tree);
     };
 
-    const FolderTreeModal = ({ visible, onClose, treeData }) => {
+    const FolderTreeModal = ({ open, onClose, treeData }) => {
         const handleSelect = (_, { node }) => {
             if (node.fullPath) {
                 window.open(`/?unread=true&folder=${encodeURIComponent(node.fullPath)}`, '_blank');
@@ -248,7 +248,7 @@
         return (
             <Modal
                 title="📁 Folder Navigation"
-                open={visible}
+                open={open}
                 onCancel={onClose}
                 footer={null}
             >
@@ -284,7 +284,7 @@
             setShowBlockWordsModal
         }) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
-              headStyle={{textAlign: "center"}} bodyStyle={{textAlign: "center"}}>
+              styles={{header: {textAlign: "center"}, body: {textAlign: "center"}}}>
             <Spin spinning={loading}>
                 <Statistic title="Total" value={total}/>
                 <Statistic title="Loaded" value={displayed}/>
@@ -316,13 +316,13 @@
         </Card>
     );
 
-    const BlockWordsModal = ({visible, onClose, blockWords, setBlockWords}) => {
+    const BlockWordsModal = ({open, onClose, blockWords, setBlockWords}) => {
         const [draft, setDraft] = useState(blockWords);
-        useEffect(() => { if (visible) setDraft(blockWords); }, [visible]);
+        useEffect(() => { if (open) setDraft(blockWords); }, [open]);
         return (
             <Modal
                 title="🚫 Block Words"
-                open={visible}
+                open={open}
                 onCancel={onClose}
                 onOk={() => { setBlockWords(draft); onClose(); }}
                 okText="Save"
@@ -587,8 +587,8 @@
                                     toggleCardMode={toggleCardMode} showStats={showStats}
                                     setShowFolderModal={setShowFolderModal}
                                     setShowBlockWordsModal={setShowBlockWordsModal}/>
-                        <FolderTreeModal visible={showFolderModal} onClose={() => setShowFolderModal(false)} treeData={folderTreeData}/>
-                        <BlockWordsModal visible={showBlockWordsModal} onClose={() => setShowBlockWordsModal(false)} blockWords={blockWords} setBlockWords={setBlockWords}/>
+                        <FolderTreeModal open={showFolderModal} onClose={() => setShowFolderModal(false)} treeData={folderTreeData}/>
+                        <BlockWordsModal open={showBlockWordsModal} onClose={() => setShowBlockWordsModal(false)} blockWords={blockWords} setBlockWords={setBlockWords}/>
                         <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
                             item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             cardMode={cardMode} isRead={readItems.has(item.id)} blockWordList={blockWordList}/>}/>
