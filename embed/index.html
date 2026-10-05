@@ -169,7 +169,7 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
+<script type="text/babel" data-presets="react">
     const {useState, useEffect, useRef, useCallback, useMemo} = React;
     const {
         Layout, Divider, List, Card, Typography, Spin, Tag, Button, ConfigProvider,
@@ -179,28 +179,11 @@
     const {Content} = Layout;
     const {Text} = Typography;
 
-    const useDarkMode = () => {
-        const [themeMode, setThemeMode] = useState(() => localStorage.getItem("themeMode") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
-        useEffect(() => localStorage.setItem("themeMode", themeMode), [themeMode]);
-        return {themeMode, toggleTheme: () => setThemeMode((m) => (m === "light" ? "dark" : "light"))};
-    };
-
-    const useScreenshotMode = () => {
-        const [screenshotMode, setScreenshotMode] = useState(() => localStorage.getItem("screenshotMode") !== "false");
-        useEffect(() => localStorage.setItem("screenshotMode", screenshotMode), [screenshotMode]);
-        return {screenshotMode, toggleScreenshotMode: () => setScreenshotMode((m) => !m)};
-    };
-
-    const useCardMode = () => {
-        const [cardMode, setCardMode] = useState(() => localStorage.getItem("cardMode") || "standard");
-        useEffect(() => localStorage.setItem("cardMode", cardMode), [cardMode]);
-        return {cardMode, toggleCardMode: () => setCardMode((m) => (m === "standard" ? "compact" : "standard"))};
-    };
-
-    const useBlockWords = () => {
-        const [blockWords, setBlockWords] = useState(() => localStorage.getItem("blockWords") || "");
-        useEffect(() => localStorage.setItem("blockWords", blockWords), [blockWords]);
-        return {blockWords, setBlockWords};
+    const prefersDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const useStoredState = (key, parse) => {
+        const [value, setValue] = useState(() => parse(localStorage.getItem(key)));
+        useEffect(() => { localStorage.setItem(key, String(value)); }, [key, value]);
+        return [value, setValue];
     };
 
     const fetchUnreadItems = async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [];
@@ -539,10 +522,13 @@
 
     const App = () => {
         // --- User Settings ---
-        const {themeMode, toggleTheme} = useDarkMode();
-        const {screenshotMode, toggleScreenshotMode} = useScreenshotMode();
-        const {cardMode, toggleCardMode} = useCardMode();
-        const {blockWords, setBlockWords} = useBlockWords();
+        const [themeMode, setThemeMode] = useStoredState("themeMode", (v) => v || (prefersDark() ? "dark" : "light"));
+        const [screenshotMode, setScreenshotMode] = useStoredState("screenshotMode", (v) => v !== "false");
+        const [cardMode, setCardMode] = useStoredState("cardMode", (v) => v || "standard");
+        const [blockWords, setBlockWords] = useStoredState("blockWords", (v) => v || "");
+        const toggleTheme = () => setThemeMode((m) => (m === "light" ? "dark" : "light"));
+        const toggleScreenshotMode = () => setScreenshotMode((m) => !m);
+        const toggleCardMode = () => setCardMode((m) => (m === "standard" ? "compact" : "standard"));
 
         // --- UI States ---
         const [showStats, setShowStats] = useState(false);
