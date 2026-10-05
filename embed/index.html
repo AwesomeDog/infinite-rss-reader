@@ -186,10 +186,21 @@
         return [value, setValue];
     };
 
-    const fetchUnreadItems = async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [];
-    const fetchSingleItem = async (itemId) => (await fetch(`/api/rss/item?itemId=${itemId}`).then((r) => r.json())).data || null;
-    const fetchFolderItems = async (folder) => (await fetch(`/api/rss/folder?folder=${encodeURIComponent(folder)}`).then((r) => r.json())).data || [];
-    const markItemAsRead = (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error);
+    const PARAMS = (() => {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            itemId: params.get("itemId"),
+            folder: params.get("folder"),
+            unread: params.get("unread") === "true"
+        };
+    })();
+
+    const api = {
+        unread: async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [],
+        item: async (itemId) => (await fetch(`/api/rss/item?itemId=${itemId}`).then((r) => r.json())).data || null,
+        folderItems: async (folder) => (await fetch(`/api/rss/folder?folder=${encodeURIComponent(folder)}`).then((r) => r.json())).data || [],
+        markRead: (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error)
+    };
 
     // Build folder tree from items with counts
     const buildFolderTree = (items) => {
@@ -435,25 +446,20 @@
             let isMounted = true;
             (async () => {
                 try {
-                    const params = new URLSearchParams(window.location.search);
-                    const itemId = params.get('itemId');
-                    const folder = params.get('folder');
-                    const unread = params.get('unread') === 'true';
-
                     let items = [];
-                    if (itemId) {
-                        const item = await fetchSingleItem(itemId);
+                    if (PARAMS.itemId) {
+                        const item = await api.item(PARAMS.itemId);
                         items = item ? [item] : [];
-                    } else if (folder && unread) {
-                        const allUnread = await fetchUnreadItems();
+                    } else if (PARAMS.folder && PARAMS.unread) {
+                        const allUnread = await api.unread();
                         items = allUnread.filter(item => 
-                            item.folderPath === folder || 
-                            item.folderPath.startsWith(folder)
+                            item.folderPath === PARAMS.folder || 
+                            item.folderPath.startsWith(PARAMS.folder)
                         );
-                    } else if (folder) {
-                        items = await fetchFolderItems(folder);
+                    } else if (PARAMS.folder) {
+                        items = await api.folderItems(PARAMS.folder);
                     } else {
-                        items = await fetchUnreadItems();
+                        items = await api.unread();
                     }
                     if (isMounted) setAllItems(items);
                 } finally {
@@ -506,7 +512,7 @@
                     batchQueueRef.current = [];
                     
                     if (itemsToAdd.length > 0) {
-                        itemsToAdd.forEach(id => markItemAsRead(id));
+                        itemsToAdd.forEach(id => api.markRead(id));
                         setReadItems(prev => {
                             const next = new Set(prev);
                             itemsToAdd.forEach(id => next.add(id));
@@ -551,10 +557,7 @@
 
         // --- Dynamic Title Update ---
         useEffect(() => {
-            const params = new URLSearchParams(window.location.search);
-            const folder = params.get('folder');
-            const itemId = params.get('itemId');
-            const unread = params.get('unread') === 'true';
+            const {itemId, folder, unread} = PARAMS;
 
             let title = "Infinite RSS Reader";
             
