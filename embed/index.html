@@ -560,6 +560,8 @@
         const [modal, setModal] = useState(null); // "folder" | "block" | "help" | null
         const closeModal = () => setModal(null);
         const [activeIndex, setActiveIndex] = useState(-1);
+        // Only a keyboard move (j/k/g) should scroll; a mouse hover must not yank the page.
+        const keyboardNavRef = useRef(false);
         const [toggledIds, setToggledIds] = useState(new Set());
         const toggleMinimize = useCallback((id) => setToggledIds((prev) => {
             const next = new Set(prev);
@@ -583,10 +585,24 @@
 
         // --- Keyboard Shortcuts ---
         useEffect(() => {
-            if (activeIndex < 0) return;
+            if (activeIndex < 0 || !keyboardNavRef.current) return;
+            keyboardNavRef.current = false;
             const el = document.querySelector(`.rss-item[data-idx="${activeIndex}"]`);
             el && el.scrollIntoView({behavior: "smooth", block: "start"});
         }, [activeIndex]);
+
+        // Keep activeIndex in sync with whatever card the mouse is actually over,
+        // so o/m/c act on the hovered item instead of a stale keyboard cursor.
+        useEffect(() => {
+            const onOver = (e) => {
+                const el = e.target && e.target.closest && e.target.closest(".rss-item");
+                if (!el || !el.dataset || el.dataset.idx === undefined) return;
+                const idx = Number(el.dataset.idx);
+                if (!Number.isNaN(idx)) setActiveIndex(idx);
+            };
+            window.addEventListener("mouseover", onOver);
+            return () => window.removeEventListener("mouseover", onOver);
+        }, []);
 
         useEffect(() => {
             const onKey = (e) => {
@@ -601,10 +617,12 @@
                 switch (e.key) {
                     case "j":
                         if (!len) return;
+                        keyboardNavRef.current = true;
                         setActiveIndex(Math.min(len - 1, current() + 1));
                         break;
                     case "k":
                         if (!len) return;
+                        keyboardNavRef.current = true;
                         setActiveIndex(Math.max(0, current() - 1));
                         break;
                     case "o": {
