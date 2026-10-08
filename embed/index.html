@@ -384,6 +384,14 @@
                 if (name.startsWith("on") || ((name === "href" || name === "src") && (val.startsWith("javascript:") || val.startsWith("data:")))) el.removeAttribute(name);
             });
         });
+        // Body links always open in a new tab -> never lose the reading position.
+        // Skip the schemes that make no sense in a new tab (in-page anchors, mail/tel, ...).
+        doc.querySelectorAll("a[href], area[href]").forEach((a) => {
+            const href = (a.getAttribute("href") || "").trim();
+            if (/^(#|mailto:|tel:|sms:|javascript:|data:)/i.test(href)) return;
+            a.setAttribute("target", "_blank");
+            a.setAttribute("rel", "noopener noreferrer");
+        });
         return doc.body.innerHTML;
     };
 
@@ -440,15 +448,15 @@
                 >
                     {!isCompactMode && (
                         <div style={{marginTop: -16, marginBottom: 16}}>
-                            {item.link && <a href={item.link} target="_blank" title="View Source" style={{marginRight: 8}}>🔍</a>}
+                            {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" title="View Source" style={{marginRight: 8}}>🔍</a>}
                             {item.folderPath && (
-                                <a href={`/?folder=${encodeURIComponent(item.folderPath)}`} target="_blank" style={{textDecoration: 'none'}}>
+                                <a href={`/?folder=${encodeURIComponent(item.folderPath)}`} target="_blank" rel="noopener noreferrer" style={{textDecoration: 'none'}}>
                                     <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}}>{item.folderPath}</Tag>
                                 </a>
                             )}
                             {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
                             {item.date && (
-                                <a href={`/?itemId=${item.id}`} target="_blank" className="date-link" style={{textDecoration: 'none'}}>
+                                <a href={`/?itemId=${item.id}`} target="_blank" rel="noopener noreferrer" className="date-link" style={{textDecoration: 'none'}}>
                                     <Text type="secondary" style={{cursor: 'pointer'}}>{new Date(item.date).toLocaleString()}</Text>
                                 </a>
                             )}
