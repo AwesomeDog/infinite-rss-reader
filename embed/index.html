@@ -62,6 +62,11 @@
             box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3) !important;
         }
 
+        .rss-item.active .ant-card {
+            border-color: #fa8c16 !important;
+            box-shadow: 0 0 0 2px rgba(250, 140, 22, .35) !important;
+        }
+
         .date-link:hover {
             opacity: 0.7;
         }
@@ -177,6 +182,32 @@
     } = antd;
     const {DirectoryTree} = Tree, {Content} = Layout, {Text} = Typography;
     const APP_NAME = "Infinite RSS Reader";
+
+    const SHORTCUTS = [
+        ["j", "Next article"],
+        ["k", "Previous article"],
+        ["o", "Open original link"],
+        ["m", "Collapse / expand article"],
+        ["c", "Copy article link"],
+        ["g", "Jump to top"],
+        ["?", "Show this help"]
+    ];
+
+    const copyText = (text) => {
+        if (!text) return message.warning("Nothing to copy.");
+        navigator.clipboard.writeText(text)
+            .then(() => message.success("Link copied!"))
+            .catch(() => message.error("Copy failed."));
+    };
+
+    // First item still visible below the top edge — the fallback "current" article.
+    const viewportIndex = () => {
+        const els = document.querySelectorAll(".rss-item");
+        for (let i = 0; i < els.length; i++) {
+            if (els[i].getBoundingClientRect().bottom > 120) return i;
+        }
+        return Math.max(0, els.length - 1);
+    };
 
     const prefersDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const useStoredState = (key, parse) => {
@@ -332,6 +363,17 @@
         );
     };
 
+    const HelpModal = ({open, onClose}) => (
+        <Modal title="⌨️ Keyboard Shortcuts" open={open} onCancel={onClose} footer={null}>
+            <List size="small" dataSource={SHORTCUTS} rowKey={([k]) => k} renderItem={([key, desc]) => (
+                <List.Item>
+                    <span style={{minWidth: 120, display: "inline-block"}}><kbd>{key}</kbd></span>
+                    <Text type="secondary" style={{flex: 1, textAlign: "right"}}>{desc}</Text>
+                </List.Item>
+            )}/>
+        </Modal>
+    );
+
     const sanitizeHtml = (html) => {
         const doc = new DOMParser().parseFromString(html, "text/html");
         doc.querySelectorAll('base,script,iframe,object,embed,form,input,button,link[rel="stylesheet"]').forEach((n) => n.remove());
@@ -344,13 +386,14 @@
         return doc.body.innerHTML;
     };
 
-    const RssItem = React.memo(({item, onBecameVisible, screenshotMode, cardMode, isRead, blockWordList}) => {
+    const RssItem = React.memo(({item, index, active, toggled, onToggleMinimize, onBecameVisible, screenshotMode, cardMode, isRead, blockWordList}) => {
         const itemRef = useRef(null), contentRef = useRef(null), wasVisible = useRef(false);
-        const [minimized, setMinimized] = useState(() => {
-            if (!blockWordList || blockWordList.length === 0) return false;
+        // Block-word collapse is the default; a manual toggle flips it.
+        const autoMinimized = useMemo(() => {
             const text = ((item.subject || '') + ' ' + (item.body || '')).toLowerCase();
             return blockWordList.some(w => text.includes(w));
-        });
+        }, [item.subject, item.body, blockWordList]);
+        const minimized = toggled ? !autoMinimized : autoMinimized;
         const isCompactMode = cardMode === "compact";
 
         useEffect(() => {
@@ -384,12 +427,12 @@
 
         const sanitizedBody = useMemo(() => (item.body ? sanitizeHtml(item.body) : ""), [item.body]);
         return (
-            <div ref={itemRef} className={`rss-item ${isRead ? "read" : "unread"}`}>
-                <Card 
+            <div ref={itemRef} data-idx={index} className={`rss-item ${isRead ? "read" : "unread"}${active ? " active" : ""}`}>
+                <Card
                     title={item.subject || "No Title"}
                     extra={
                         <Space>
-                            {!isCompactMode && <button type="button" title={minimized ? "Maximize" : "Minimize"} onClick={() => setMinimized(!minimized)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>{minimized ? "➕" : "➖"}</button>}
+                            {!isCompactMode && <button type="button" title={minimized ? "Maximize" : "Minimize"} onClick={() => onToggleMinimize(item.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>{minimized ? "➕" : "➖"}</button>}
                             <button type="button" title="Take Screenshot" onClick={handleScreenshot} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>📸</button>
                         </Space>
                     }
@@ -505,8 +548,15 @@
 
         // --- UI States ---
         const [showStats, setShowStats] = useState(false);
-        const [modal, setModal] = useState(null); // "folder" | "block" | null
+        const [modal, setModal] = useState(null); // "folder" | "block" | "help" | null
         const closeModal = () => setModal(null);
+        const [activeIndex, setActiveIndex] = useState(-1);
+        const [toggledIds, setToggledIds] = useState(new Set());
+        const toggleMinimize = useCallback((id) => setToggledIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        }), []);
 
         // --- Core Business Logic ---
         const { allItems, loading, folderTreeData } = useRssData();
@@ -521,6 +571,62 @@
             document.body.style.backgroundColor = isDarkMode ? "#141414" : "#fff";
             document.body.style.color = isDarkMode ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.88)";
         }, [isDarkMode]);
+
+        // --- Keyboard Shortcuts ---
+        useEffect(() => {
+            if (activeIndex < 0) return;
+            const el = document.querySelector(`.rss-item[data-idx="${activeIndex}"]`);
+            el && el.scrollIntoView({behavior: "smooth", block: "start"});
+        }, [activeIndex]);
+
+        useEffect(() => {
+            const onKey = (e) => {
+                const el = e.target;
+                const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+                if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+
+                const len = displayedItems.length;
+                const current = () => (activeIndex >= 0 ? activeIndex : viewportIndex());
+                const currentItem = () => displayedItems[current()];
+
+                switch (e.key) {
+                    case "j":
+                        if (!len) return;
+                        setActiveIndex(Math.min(len - 1, current() + 1));
+                        break;
+                    case "k":
+                        if (!len) return;
+                        setActiveIndex(Math.max(0, current() - 1));
+                        break;
+                    case "o": {
+                        const it = currentItem();
+                        if (it && it.link) window.open(it.link, "_blank", "noopener");
+                        break;
+                    }
+                    case "m": {
+                        const it = currentItem();
+                        if (it) toggleMinimize(it.id);
+                        break;
+                    }
+                    case "c": {
+                        const it = currentItem();
+                        if (it) copyText(it.link);
+                        break;
+                    }
+                    case "g":
+                        setActiveIndex(-1);
+                        window.scrollTo({top: 0, behavior: "smooth"});
+                        break;
+                    case "?":
+                        setModal("help");
+                        break;
+                    default:
+                        break;
+                }
+            };
+            window.addEventListener("keydown", onKey);
+            return () => window.removeEventListener("keydown", onKey);
+        }, [displayedItems, activeIndex, toggleMinimize]);
 
         // --- Dynamic Title Update ---
         useEffect(() => {
@@ -547,8 +653,11 @@
                                     openModal={setModal}/>
                         <FolderTreeModal open={modal === "folder"} onClose={closeModal} treeData={folderTreeData}/>
                         <BlockWordsModal open={modal === "block"} onClose={closeModal} blockWords={blockWords} setBlockWords={setBlockWords}/>
-                        <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item) => <RssItem
-                            item={item} onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
+                        <HelpModal open={modal === "help"} onClose={closeModal}/>
+                        <List className="rss-list-container" rowKey="id" dataSource={displayedItems} renderItem={(item, index) => <RssItem
+                            item={item} index={index} active={index === activeIndex} toggled={toggledIds.has(item.id)}
+                            onToggleMinimize={toggleMinimize}
+                            onBecameVisible={handleBecameVisible} screenshotMode={screenshotMode}
                             cardMode={cardMode} isRead={readItems.has(item.id)} blockWordList={blockWordList}/>}/>
                         <div ref={sentinelRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
