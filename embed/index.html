@@ -358,7 +358,8 @@
                 cancelText="Cancel"
             >
                 <p><Text type="secondary">Comma-separated keywords. Matched items will be auto-minimized.</Text></p>
-                <Input.TextArea rows={4} placeholder="keyword1, keyword2, keyword3" value={draft} onChange={e => setDraft(e.target.value)}/>
+                <Input.TextArea autoSize={{minRows: 20, maxRows: 40}} placeholder="keyword1, keyword2, keyword3"
+                                 value={draft} onChange={e => setDraft(e.target.value)}/>
             </Modal>
         );
     };
