@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Infinite RSS Reader</title>
     <link rel="icon"
-          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='2' y='3' width='20' height='18' fill='%23fff' stroke='%23333' stroke-width='1.5' rx='1'/><rect x='4' y='5' width='16' height='3' fill='%23333'/><text x='12' y='7.5' font-family='Arial' font-size='2.5' font-weight='bold' text-anchor='middle' fill='%23fff'>NEWS</text><rect x='4' y='9' width='7' height='1' fill='%23333'/><rect x='13' y='9' width='7' height='1' fill='%23333'/><rect x='4' y='11' width='7' height='1' fill='%23333'/><rect x='13' y='11' width='7' height='1' fill='%23333'/><rect x='4' y='13' width='16' height='1' fill='%23333'/><rect x='4' y='15' width='16' height='1' fill='%23333'/><rect x='4' y='17' width='12' height='1' fill='%23333'/></svg>"/>
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='2' y='3' width='20' height='18' fill='%23fff' stroke='%23333' stroke-width='1.5' rx='1'/><rect x='4' y='5' width='16' height='3' fill='%23333'/><text x='12' y='7.5' font-family='Arial' font-size='2.5' font-weight='bold' text-anchor='middle' fill='%23fff'>NEWS</text><rect x='4' y='9' width='7' height='1' fill='%23333'/><rect x='13' y='9' width='7' height='1' fill='%23333'/><rect x='4' y='11' width='7' height='1' fill='%23333'/><rect x='13' y='11' width='7' height='1' fill='%23333'/><rect x='4' y='13' width='16' height='1' fill='%23333'/><rect x='4' y='15' width='16' height='1' fill='%23333'/><rect x='4' y='17' width='12' height='1' fill='%23333'/></svg>"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.28.4/babel.min.js"></script>
@@ -14,161 +14,39 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/5.27.4/reset.min.css" crossorigin="anonymous"/>
     <style>
-        .main-content {
-            padding: 0 25%;
-            margin: 24px 0;
-        }
-
-        .stats-panel {
-            position: fixed;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 1000;
-        }
-
-        .stats-toggle-btn {
-            display: none;
-        }
-
-        .rss-item {
-            margin-bottom: 24px;
-        }
-
-        .rss-item * {
-            max-width: 100%;
-            height: auto;
-            box-sizing: border-box;
-        }
-
-        .rss-item .ant-card {
-            transition: all 0.3s ease;
-        }
-
-        .rss-item.unread .ant-card {
-            border-color: #696FC7;
-            box-shadow: 0 2px 8px #A7AAE1;
-            border-radius: 8px;
-        }
-
-        .rss-item.read .ant-card {
-            border-style: dashed;
-            border-color: #d9d9d9;
-            box-shadow: none;
-        }
-
-        .rss-item .ant-card:hover {
-            border-color: #fa8c16 !important;
-            box-shadow: 0 4px 12px rgba(250, 140, 22, 0.3) !important;
-        }
-
-        .rss-item.active .ant-card {
-            border-color: #fa8c16 !important;
-            box-shadow: 0 0 0 2px rgba(250, 140, 22, .35) !important;
-        }
-
-        .date-link:hover {
-            opacity: 0.7;
-        }
-
-        .rss-item .ant-card-head-title {
-            white-space: normal !important;
-            word-wrap: break-word;
-        }
-
-        .rss-item .ant-card-body {
-            word-wrap: break-word;
-        }
-
-        .rss-item-content {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .rss-item-content table {
-            max-width: none;
-            border-collapse: collapse;
-        }
-
-        .rss-item-content table,
-        .rss-item-content th,
-        .rss-item-content td {
-            word-break: break-word;
-        }
-
-        .rss-item-body {
-            position: relative;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .rss-item-body.minimized {
-            max-height: 120px;
-        }
-
-        .rss-item-body-fade {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 50px;
-            pointer-events: none;
-            background: linear-gradient(transparent, var(--ant-color-bg-container, #ffffff));
-        }
-
+        .main-content { padding: 0 25%; margin: 24px 0 }
+        .stats-panel { position: fixed; left: 20px; top: 50%; transform: translateY(-50%); z-index: 1000 }
+        .stats-toggle-btn { display: none }
+        .rss-item { margin-bottom: 24px }
+        .rss-item * { max-width: 100%; height: auto; box-sizing: border-box }
+        .rss-item .ant-card { transition: all .3s ease }
+        .rss-item.unread .ant-card { border-color: #696FC7; box-shadow: 0 2px 8px #A7AAE1; border-radius: 8px }
+        .rss-item.read .ant-card { border-style: dashed; border-color: #d9d9d9; box-shadow: none }
+        .rss-item .ant-card:hover { border-color: #fa8c16 !important; box-shadow: 0 4px 12px rgba(250, 140, 22, .3) !important }
+        .rss-item.active .ant-card { border-color: #fa8c16 !important; box-shadow: 0 0 0 2px rgba(250, 140, 22, .35) !important }
+        .date-link:hover { opacity: .7 }
+        .rss-item .ant-card-head-title { white-space: normal !important }
+        .rss-item .ant-card-head-title, .rss-item .ant-card-body,
+        .rss-item-content table, .rss-item-content th, .rss-item-content td { word-wrap: break-word; word-break: break-word }
+        .rss-item-content { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch }
+        .rss-item-content table { max-width: none; border-collapse: collapse }
+        .rss-item-body { position: relative; overflow: hidden; transition: max-height .3s ease }
+        .rss-item-body.minimized { max-height: 120px }
+        .rss-item-body-fade { position: absolute; inset: auto 0 0; height: 50px; pointer-events: none; background: linear-gradient(transparent, var(--ant-color-bg-container, #fff)) }
         @media (max-width: 768px) {
-            .main-content {
-                padding: 0 16px;
-            }
-
-            .stats-panel {
-                display: none;
-            }
-
-            .stats-panel.visible {
-                display: block;
-            }
-
-            .stats-toggle-btn {
-                display: block;
-            }
-
+            .main-content { padding: 0 16px }
+            .stats-panel { display: none }
+            .stats-panel.visible, .stats-toggle-btn { display: block }
         }
-
         @media (min-width: 1400px) {
-            .main-content {
-                padding: 0 10%;
-                overflow-x: hidden;
-            }
-
-            .rss-list-container .ant-list-items {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 24px;
-            }
-
-            .rss-list-container .rss-item {
-                margin-bottom: 0;
-                min-width: 0;
-                overflow: hidden;
-            }
+            .main-content { padding: 0 10%; overflow-x: hidden }
+            .rss-list-container .ant-list-items { display: grid; grid-template-columns: repeat(var(--cols, 2), 1fr); gap: 24px }
+            .rss-list-container .rss-item { margin-bottom: 0; min-width: 0; overflow: hidden }
         }
-
-        @media (min-width: 1700px) {
-            .rss-list-container .ant-list-items {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
+        @media (min-width: 1700px) { .rss-list-container { --cols: 3 } }
         @media (min-width: 2000px) {
-            .main-content {
-                padding: 0 5%;
-            }
-
-            .rss-list-container .ant-list-items {
-                grid-template-columns: repeat(4, 1fr);
-            }
+            .main-content { padding: 0 5% }
+            .rss-list-container { --cols: 4 }
         }
     </style>
 </head>
@@ -182,34 +60,28 @@
     } = antd;
     const {DirectoryTree} = Tree, {Content} = Layout, {Text} = Typography;
     const APP_NAME = "Infinite RSS Reader";
-
-    const SHORTCUTS = [
-        ["j", "Next article"],
-        ["k", "Previous article"],
-        ["o", "Open original link"],
-        ["m", "Collapse / expand article"],
-        ["c", "Copy article link"],
-        ["g", "Jump to top"],
-        ["?", "Show this help"]
-    ];
-
-    const copyText = (text) => {
-        if (!text) return message.warning("Nothing to copy.");
-        navigator.clipboard.writeText(text)
-            .then(() => message.success("Link copied!"))
-            .catch(() => message.error("Copy failed."));
+    const SHORTCUTS = [["j", "Next article"], ["k", "Previous article"], ["o", "Open original link"],
+        ["m", "Collapse / expand article"], ["c", "Copy article link"], ["g", "Jump to top"], ["?", "Show this help"]];
+    // Hoisted so they are not re-allocated on every render.
+    const ICON_BTN = {background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '4px 8px'};
+    const PLAIN_LINK = {textDecoration: 'none'}, FULL_W = {width: "100%"};
+    const NEW_TAB = {target: "_blank", rel: "noopener noreferrer"};
+    const SHOT_OPTS = {
+        imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        skipFonts: true, allowTaint: true
     };
+
+    const copyText = (text) => text
+        ? navigator.clipboard.writeText(text).then(() => message.success("Link copied!"), () => message.error("Copy failed."))
+        : message.warning("Nothing to copy.");
 
     // First item still visible below the top edge — the fallback "current" article.
     const viewportIndex = () => {
         const els = document.querySelectorAll(".rss-item");
-        for (let i = 0; i < els.length; i++) {
-            if (els[i].getBoundingClientRect().bottom > 120) return i;
-        }
+        for (let i = 0; i < els.length; i++) if (els[i].getBoundingClientRect().bottom > 120) return i;
         return Math.max(0, els.length - 1);
     };
 
-    const prefersDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const useStoredState = (key, parse) => {
         const [value, setValue] = useState(() => parse(localStorage.getItem(key)));
         useEffect(() => { localStorage.setItem(key, String(value)); }, [key, value]);
@@ -217,103 +89,57 @@
     };
 
     const PARAMS = (() => {
-        const params = new URLSearchParams(window.location.search);
-        return {
-            itemId: params.get("itemId"),
-            folder: params.get("folder"),
-            unread: params.get("unread") === "true"
-        };
+        const p = new URLSearchParams(location.search);
+        return {itemId: p.get("itemId"), folder: p.get("folder"), unread: p.get("unread") === "true"};
     })();
 
-    const api = {
-        unread: async () => (await fetch("/api/rss/unread").then((r) => r.json())).data || [],
-        item: async (itemId) => (await fetch(`/api/rss/item?itemId=${itemId}`).then((r) => r.json())).data || null,
-        folderItems: async (folder) => (await fetch(`/api/rss/folder?folder=${encodeURIComponent(folder)}`).then((r) => r.json())).data || [],
-        markRead: (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error)
+    const apiGet = (path, fallback = []) => fetch(`/api/rss/${path}`).then(r => r.json()).then(j => j.data || fallback);
+    const markRead = (itemId) => fetch(`/api/rss/mark-read?itemId=${itemId}`).catch(console.error);
+
+    // Resolve items from URL params: single item > folder+unread > folder > all unread
+    const fetchItems = async () => {
+        if (PARAMS.itemId) return [await apiGet(`item?itemId=${PARAMS.itemId}`, null)].filter(Boolean);
+        if (!PARAMS.folder) return apiGet("unread");
+        if (!PARAMS.unread) return apiGet(`folder?folder=${encodeURIComponent(PARAMS.folder)}`);
+        return (await apiGet("unread")).filter(({folderPath}) => folderPath.startsWith(PARAMS.folder));
     };
 
-    // Build folder tree from items with counts
+    // Build folder tree from items, each node counting itself + descendants.
     const buildFolderTree = (items) => {
-        const c = {};   // fullPath -> direct item count
-        const root = {}; // nested { [name]: {children, fullPath} }
+        const counts = {}, root = {};
         items.forEach(({folderPath}) => {
             if (!folderPath) return;
-            c[folderPath] = (c[folderPath] || 0) + 1;
+            counts[folderPath] = (counts[folderPath] || 0) + 1;
             let cur = root, acc = '';
             folderPath.split('/').filter(Boolean).forEach((part) => {
                 acc += '/' + part;
-                if (!cur[part]) cur[part] = {children: {}, fullPath: acc};
-                cur = cur[part].children;
+                cur = (cur[part] || (cur[part] = {children: {}, fullPath: acc})).children;
             });
         });
-
-        const walk = (obj) => Object.entries(obj).map(([name, data]) => {
-            const children = walk(data.children);
+        const walk = (obj) => Object.entries(obj).map(([title, {children, fullPath}]) => {
+            const kids = walk(children);
             return {
-                title: name,
-                key: data.fullPath || name,
-                fullPath: data.fullPath,
-                count: (c[data.fullPath] || 0) + children.reduce((sum, child) => sum + child.count, 0),
-                children: children.length ? children : undefined
+                title, fullPath, key: fullPath || title, children: kids.length ? kids : undefined,
+                count: (counts[fullPath] || 0) + kids.reduce((sum, c) => sum + c.count, 0)
             };
         });
-
         return walk(root);
     };
 
-    const FolderTreeModal = ({ open, onClose, treeData }) => {
-        const handleSelect = (_, { node }) => {
-            if (node.fullPath) {
-                window.open(`/?unread=true&folder=${encodeURIComponent(node.fullPath)}`, '_blank');
-            }
-        };
-        
-        const titleRender = (node) => (
-            <span>
-                {node.title}
-                {node.count > 0 && <Tag color="blue" style={{marginLeft: 8}}>{node.count}</Tag>}
-            </span>
-        );
-        
-        return (
-            <Modal
-                title="📁 Folder Navigation"
-                open={open}
-                onCancel={onClose}
-                footer={null}
-            >
-                {treeData.length > 0 ? (
-                    <DirectoryTree
-                        defaultExpandAll
-                        treeData={treeData}
-                        onSelect={handleSelect}
-                        titleRender={titleRender}
-                        style={{ overflow: 'auto' }}
-                    />
-                ) : (
-                    <Text type="secondary">No folder data available</Text>
-                )}
-            </Modal>
-        );
-    };
+    const FolderTreeModal = ({open, onClose, treeData}) => (
+        <Modal title="📁 Folder Navigation" open={open} onCancel={onClose} footer={null}>
+            {treeData.length ? (
+                <DirectoryTree defaultExpandAll treeData={treeData} style={{overflow: 'auto'}}
+                    onSelect={(_, {node}) => node.fullPath && window.open(`/?unread=true&folder=${encodeURIComponent(node.fullPath)}`, '_blank')}
+                    titleRender={(node) => <span>{node.title}{node.count > 0 &&
+                    <Tag color="blue" style={{marginLeft: 8}}>{node.count}</Tag>}</span>}/>
+            ) : <Text type="secondary">No folder data available</Text>}
+        </Modal>
+    );
 
-    const StatsPanel = (
-        {
-            total,
-            read,
-            displayed,
-            loading,
-            themeMode,
-            toggleTheme,
-            screenshotMode,
-            toggleScreenshotMode,
-            cardMode,
-            toggleCardMode,
-            showStats,
-            openModal
-        }) => (
+    const StatsPanel = ({total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, cardMode, toggleCardMode, showStats, openModal}) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
-              styles={{header: {textAlign: "center"}, body: {textAlign: "center"}}}>
+            styles={{header: {textAlign: "center"}, body: {textAlign: "center"}}}>
             <Spin spinning={loading}>
                 <Statistic title="Total" value={total}/>
                 <Statistic title="Loaded" value={displayed}/>
@@ -323,24 +149,19 @@
             </Spin>
             <Divider/>
             <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-                <Tooltip title={themeMode === "light" ? "Light Theme" : "Dark Theme"}>
-                    <Switch style={{width: "100%"}} size="small" checkedChildren="☀️" unCheckedChildren="🌙"
-                            checked={themeMode === "light"} onChange={toggleTheme}/>
-                </Tooltip>
-                <Tooltip title={screenshotMode ? "Screenshot Full Card" : "Screenshot Body Only"}>
-                    <Switch style={{width: "100%"}} size="small" checkedChildren="📸 Full" unCheckedChildren="📸 Body"
-                            checked={screenshotMode} onChange={toggleScreenshotMode}/>
-                </Tooltip>
-                <Tooltip title={cardMode === "standard" ? "Standard Interface" : "Compact Interface"}>
-                    <Switch style={{width: "100%"}} size="small" checkedChildren="Standard" unCheckedChildren="Compact"
-                            checked={cardMode === "standard"} onChange={toggleCardMode}/>
-                </Tooltip>
-                <Tooltip title="Browse Folders">
-                    <Button size="small" onClick={() => openModal("folder")} style={{width: "100%"}}>📁 Folders</Button>
-                </Tooltip>
-                <Tooltip title="Manage block words">
-                    <Button size="small" onClick={() => openModal("block")} style={{width: "100%"}}>🚫 Block</Button>
-                </Tooltip>
+                {[[themeMode === "light", toggleTheme, "Light Theme", "Dark Theme", "☀️", "🌙"],
+                    [screenshotMode, toggleScreenshotMode, "Screenshot Full Card", "Screenshot Body Only", "📸 Full", "📸 Body"],
+                    [cardMode === "standard", toggleCardMode, "Standard Interface", "Compact Interface", "Standard", "Compact"]
+                ].map(([checked, onChange, on, off, yes, no], i) => (
+                    <Tooltip key={i} title={checked ? on : off}>
+                        <Switch style={FULL_W} size="small" checkedChildren={yes} unCheckedChildren={no} checked={checked} onChange={onChange}/>
+                    </Tooltip>
+                ))}
+                {[["folder", "📁 Folders", "Browse Folders"], ["block", "🚫 Block", "Manage block words"]].map(([key, label, tip]) => (
+                    <Tooltip key={key} title={tip}>
+                        <Button size="small" style={FULL_W} onClick={() => openModal(key)}>{label}</Button>
+                    </Tooltip>
+                ))}
             </div>
         </Card>
     );
@@ -349,17 +170,11 @@
         const [draft, setDraft] = useState(blockWords);
         useEffect(() => { if (open) setDraft(blockWords); }, [open]);
         return (
-            <Modal
-                title="🚫 Block Words"
-                open={open}
-                onCancel={onClose}
-                onOk={() => { setBlockWords(draft); onClose(); }}
-                okText="Save"
-                cancelText="Cancel"
-            >
+            <Modal title="🚫 Block Words" open={open} onCancel={onClose} okText="Save" cancelText="Cancel"
+                onOk={() => { setBlockWords(draft); onClose(); }}>
                 <p><Text type="secondary">Comma-separated keywords. Matched items will be auto-minimized.</Text></p>
                 <Input.TextArea autoSize={{minRows: 20, maxRows: 40}} placeholder="keyword1, keyword2, keyword3"
-                                 value={draft} onChange={e => setDraft(e.target.value)}/>
+                    value={draft} onChange={e => setDraft(e.target.value)}/>
             </Modal>
         );
     };
@@ -377,18 +192,15 @@
 
     const sanitizeHtml = (html) => {
         const doc = new DOMParser().parseFromString(html, "text/html");
-        doc.querySelectorAll('base,script,iframe,object,embed,form,input,button,link[rel="stylesheet"]').forEach((n) => n.remove());
-        doc.querySelectorAll("*").forEach((el) => {
-            [...el.attributes].forEach((attr) => {
-                const name = attr.name.toLowerCase(), val = attr.value.toLowerCase();
-                if (name.startsWith("on") || ((name === "href" || name === "src") && (val.startsWith("javascript:") || val.startsWith("data:")))) el.removeAttribute(name);
-            });
-        });
+        doc.querySelectorAll('base,script,iframe,object,embed,form,input,button,link[rel="stylesheet"]').forEach(n => n.remove());
+        doc.querySelectorAll("*").forEach(el => [...el.attributes].forEach(({name, value}) => {
+            const n = name.toLowerCase(), v = value.toLowerCase();
+            if (n.startsWith("on") || ((n === "href" || n === "src") && (v.startsWith("javascript:") || v.startsWith("data:")))) el.removeAttribute(name);
+        }));
         // Body links always open in a new tab -> never lose the reading position.
         // Skip the schemes that make no sense in a new tab (in-page anchors, mail/tel, ...).
-        doc.querySelectorAll("a[href], area[href]").forEach((a) => {
-            const href = (a.getAttribute("href") || "").trim();
-            if (/^(#|mailto:|tel:|sms:|javascript:|data:)/i.test(href)) return;
+        doc.querySelectorAll("a[href], area[href]").forEach(a => {
+            if (/^(#|mailto:|tel:|sms:|javascript:|data:)/i.test((a.getAttribute("href") || "").trim())) return;
             a.setAttribute("target", "_blank");
             a.setAttribute("rel", "noopener noreferrer");
         });
@@ -417,49 +229,36 @@
             return () => observer.disconnect();
         }, [item.id, onBecameVisible]);
 
-        const handleScreenshot = () => {
+        const handleScreenshot = async () => {
             const card = itemRef.current?.querySelector(".ant-card");
             const target = screenshotMode ? card : contentRef.current;
             if (!target) return message.error("No content to screenshot.");
-            htmlToImage.toBlob(target, {
-                backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff',
-                imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-                skipFonts: true,
-                allowTaint: true
-            })
-                .then(blob => blob
-                    ? navigator.clipboard.write([new ClipboardItem({"image/png": blob})])
-                        .then(() => message.success("Screenshot copied!"))
-                    : message.error("Failed."))
-                .catch(() => message.error("Screenshot failed."));
+            try {
+                const blob = await htmlToImage.toBlob(target, {...SHOT_OPTS, backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff'});
+                await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
+                message.success("Screenshot copied!");
+            } catch (e) {
+                message.error("Screenshot failed.");
+            }
         };
 
         const sanitizedBody = useMemo(() => (item.body ? sanitizeHtml(item.body) : ""), [item.body]);
         return (
             <div ref={itemRef} data-idx={index} className={`rss-item ${isRead ? "read" : "unread"}${active ? " active" : ""}`}>
-                <Card
-                    title={item.subject || "No Title"}
-                    extra={
-                        <Space>
-                            {!isCompactMode && <button type="button" title={minimized ? "Maximize" : "Minimize"} onClick={() => onToggleMinimize(item.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>{minimized ? "➕" : "➖"}</button>}
-                            <button type="button" title="Take Screenshot" onClick={handleScreenshot} style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:'4px 8px'}}>📸</button>
-                        </Space>
-                    }
-                >
+                <Card title={item.subject || "No Title"} extra={
+                    <Space>
+                        {!isCompactMode && <button type="button" title={minimized ? "Maximize" : "Minimize"} style={ICON_BTN}
+                            onClick={() => onToggleMinimize(item.id)}>{minimized ? "➕" : "➖"}</button>}
+                        <button type="button" title="Take Screenshot" onClick={handleScreenshot} style={ICON_BTN}>📸</button>
+                    </Space>}>
                     {!isCompactMode && (
                         <div style={{marginTop: -16, marginBottom: 16}}>
-                            {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" title="View Source" style={{marginRight: 8}}>🔍</a>}
-                            {item.folderPath && (
-                                <a href={`/?folder=${encodeURIComponent(item.folderPath)}`} target="_blank" rel="noopener noreferrer" style={{textDecoration: 'none'}}>
-                                    <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}}>{item.folderPath}</Tag>
-                                </a>
-                            )}
+                            {item.link && <a href={item.link} {...NEW_TAB} title="View Source" style={{marginRight: 8}}>🔍</a>}
+                            {item.folderPath && <a href={`/?folder=${encodeURIComponent(item.folderPath)}`} {...NEW_TAB} style={PLAIN_LINK}>
+                                <Tag color="blue" style={{marginRight: 8, cursor: 'pointer'}}>{item.folderPath}</Tag></a>}
                             {item.author && <Text type="secondary">✍️: {item.author} | </Text>}
-                            {item.date && (
-                                <a href={`/?itemId=${item.id}`} target="_blank" rel="noopener noreferrer" className="date-link" style={{textDecoration: 'none'}}>
-                                    <Text type="secondary" style={{cursor: 'pointer'}}>{new Date(item.date).toLocaleString()}</Text>
-                                </a>
-                            )}
+                            {item.date && <a href={`/?itemId=${item.id}`} {...NEW_TAB} className="date-link" style={PLAIN_LINK}>
+                                <Text type="secondary" style={{cursor: 'pointer'}}>{new Date(item.date).toLocaleString()}</Text></a>}
                         </div>
                     )}
                     <div className={`rss-item-body${minimized ? ' minimized' : ''}`}>
@@ -471,89 +270,55 @@
         );
     });
 
-    // Resolve items from URL params: single item > folder+unread > folder > all unread
-    const fetchItems = async () => {
-        if (PARAMS.itemId) {
-            const item = await api.item(PARAMS.itemId);
-            return item ? [item] : [];
-        }
-        if (!PARAMS.folder) return api.unread();
-        if (!PARAMS.unread) return api.folderItems(PARAMS.folder);
-        const all = await api.unread();
-        return all.filter(({folderPath}) => folderPath.startsWith(PARAMS.folder));
-    };
-
     const useRssData = () => {
         const [allItems, setAllItems] = useState([]);
         const [loading, setLoading] = useState(true);
-
         useEffect(() => {
-            let isMounted = true;
-            fetchItems()
-                .then(items => { if (isMounted) setAllItems(items); })
-                .finally(() => { if (isMounted) setLoading(false); });
-            return () => { isMounted = false; };
+            let alive = true;
+            fetchItems().then(items => { if (alive) setAllItems(items); }).finally(() => { if (alive) setLoading(false); });
+            return () => { alive = false; };
         }, []);
-
-        const folderTreeData = useMemo(() => buildFolderTree(allItems), [allItems]);
-
-        return { allItems, loading, folderTreeData };
+        return {allItems, loading, folderTreeData: useMemo(() => buildFolderTree(allItems), [allItems])};
     };
 
     const useInfiniteScroll = (allItems, loading, pageSize = 100) => {
         const [page, setPage] = useState(1);
         const sentinelRef = useRef(null);
-
         const displayedItems = useMemo(() => allItems.slice(0, page * pageSize), [allItems, page, pageSize]);
-
         useEffect(() => {
-            if (loading || displayedItems.length >= allItems.length) return;
             const node = sentinelRef.current;
-            if (!node) return;
-            const obs = new IntersectionObserver(([entry]) => {
-                if (entry.isIntersecting) setPage((p) => p + 1);
-            }, {rootMargin: "4000px"});
+            if (loading || !node || displayedItems.length >= allItems.length) return;
+            const obs = new IntersectionObserver(([entry]) => entry.isIntersecting && setPage(p => p + 1), {rootMargin: "4000px"});
             obs.observe(node);
             return () => obs.disconnect();
         }, [loading, displayedItems.length, allItems.length]);
-
-        return { displayedItems, sentinelRef, hasMore: displayedItems.length < allItems.length };
+        return {displayedItems, sentinelRef, hasMore: displayedItems.length < allItems.length};
     };
 
     const useReadTracker = () => {
         const [readItems, setReadItems] = useState(new Set());
-        const processedRef = useRef(new Set());
-        const batchQueueRef = useRef([]);
-        const timerRef = useRef(null);
-
+        const seen = useRef(new Set()), queue = useRef([]), timer = useRef(null);
         const handleBecameVisible = useCallback((itemId) => {
-            if (processedRef.current.has(itemId)) return;
-            processedRef.current.add(itemId);
-            batchQueueRef.current.push(itemId);
-            if (timerRef.current) return;
-
-            timerRef.current = setTimeout(() => {
-                timerRef.current = null;
-                const batch = batchQueueRef.current;
-                batchQueueRef.current = [];
-                if (!batch.length) return;
-                batch.forEach(api.markRead);
+            if (seen.current.has(itemId)) return;
+            seen.current.add(itemId);
+            queue.current.push(itemId);
+            if (timer.current) return;
+            timer.current = setTimeout(() => {
+                timer.current = null;
+                const batch = queue.current.splice(0);
+                batch.forEach(markRead);
                 setReadItems(prev => new Set([...prev, ...batch]));
             }, 50);
         }, []);
-
-        return { readItems, handleBecameVisible };
+        return {readItems, handleBecameVisible};
     };
 
     const App = () => {
         // --- User Settings ---
-        const [themeMode, setThemeMode] = useStoredState("themeMode", (v) => v || (prefersDark() ? "dark" : "light"));
-        const [screenshotMode, setScreenshotMode] = useStoredState("screenshotMode", (v) => v !== "false");
-        const [cardMode, setCardMode] = useStoredState("cardMode", (v) => v || "standard");
-        const [blockWords, setBlockWords] = useStoredState("blockWords", (v) => v || "");
-        const toggleTheme = () => setThemeMode((m) => (m === "light" ? "dark" : "light"));
-        const toggleScreenshotMode = () => setScreenshotMode((m) => !m);
-        const toggleCardMode = () => setCardMode((m) => (m === "standard" ? "compact" : "standard"));
+        const [themeMode, setThemeMode] = useStoredState("themeMode", v => v || (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+        const [screenshotMode, setScreenshotMode] = useStoredState("screenshotMode", v => v !== "false");
+        const [cardMode, setCardMode] = useStoredState("cardMode", v => v || "standard");
+        const [blockWords, setBlockWords] = useStoredState("blockWords", v => v || "");
 
         // --- UI States ---
         const [showStats, setShowStats] = useState(false);
@@ -563,93 +328,61 @@
         // Only a keyboard move (j/k/g) should scroll; a mouse hover must not yank the page.
         const keyboardNavRef = useRef(false);
         const [toggledIds, setToggledIds] = useState(new Set());
-        const toggleMinimize = useCallback((id) => setToggledIds((prev) => {
+        const toggleMinimize = useCallback((id) => setToggledIds(prev => {
             const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
+            next.has(id) ? next.delete(id) : next.add(id);
             return next;
         }), []);
 
         // --- Core Business Logic ---
-        const { allItems, loading, folderTreeData } = useRssData();
-        const { displayedItems, sentinelRef, hasMore } = useInfiniteScroll(allItems, loading);
-        const { readItems, handleBecameVisible } = useReadTracker();
+        const {allItems, loading, folderTreeData} = useRssData();
+        const {displayedItems, sentinelRef, hasMore} = useInfiniteScroll(allItems, loading);
+        const {readItems, handleBecameVisible} = useReadTracker();
 
         // --- Derived Data ---
         const blockWordList = useMemo(() => blockWords.split(/[,\uFF0C]/).map(w => w.trim().toLowerCase()).filter(Boolean), [blockWords]);
-
         const isDarkMode = themeMode === "dark";
         useEffect(() => {
             document.body.style.backgroundColor = isDarkMode ? "#141414" : "#fff";
             document.body.style.color = isDarkMode ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.88)";
         }, [isDarkMode]);
 
-        // --- Keyboard Shortcuts ---
         useEffect(() => {
             if (activeIndex < 0 || !keyboardNavRef.current) return;
             keyboardNavRef.current = false;
-            const el = document.querySelector(`.rss-item[data-idx="${activeIndex}"]`);
-            el && el.scrollIntoView({behavior: "smooth", block: "start"});
+            document.querySelector(`.rss-item[data-idx="${activeIndex}"]`)?.scrollIntoView({behavior: "smooth", block: "start"});
         }, [activeIndex]);
 
         // Keep activeIndex in sync with whatever card the mouse is actually over,
         // so o/m/c act on the hovered item instead of a stale keyboard cursor.
         useEffect(() => {
             const onOver = (e) => {
-                const el = e.target && e.target.closest && e.target.closest(".rss-item");
-                if (!el || !el.dataset || el.dataset.idx === undefined) return;
-                const idx = Number(el.dataset.idx);
+                const idx = Number(e.target?.closest?.(".rss-item")?.dataset.idx);
                 if (!Number.isNaN(idx)) setActiveIndex(idx);
             };
             window.addEventListener("mouseover", onOver);
             return () => window.removeEventListener("mouseover", onOver);
         }, []);
 
+        // --- Keyboard Shortcuts (viewportIndex stays lazy: only computed on a handled key) ---
         useEffect(() => {
             const onKey = (e) => {
-                const el = e.target;
-                const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-                if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-
+                const t = e.target;
+                if (e.ctrlKey || e.metaKey || e.altKey || (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))) return;
                 const len = displayedItems.length;
-                const current = () => (activeIndex >= 0 ? activeIndex : viewportIndex());
-                const currentItem = () => displayedItems[current()];
-
-                switch (e.key) {
-                    case "j":
-                        if (!len) return;
-                        keyboardNavRef.current = true;
-                        setActiveIndex(Math.min(len - 1, current() + 1));
-                        break;
-                    case "k":
-                        if (!len) return;
-                        keyboardNavRef.current = true;
-                        setActiveIndex(Math.max(0, current() - 1));
-                        break;
-                    case "o": {
-                        const it = currentItem();
-                        if (it && it.link) window.open(it.link, "_blank", "noopener");
-                        break;
-                    }
-                    case "m": {
-                        const it = currentItem();
-                        if (it) toggleMinimize(it.id);
-                        break;
-                    }
-                    case "c": {
-                        const it = currentItem();
-                        if (it) copyText(it.link);
-                        break;
-                    }
-                    case "g":
-                        setActiveIndex(-1);
-                        window.scrollTo({top: 0, behavior: "smooth"});
-                        break;
-                    case "?":
-                        setModal("help");
-                        break;
-                    default:
-                        break;
-                }
+                const cur = () => (activeIndex >= 0 ? activeIndex : viewportIndex());
+                const move = (d) => { if (len) { keyboardNavRef.current = true; setActiveIndex(Math.max(0, Math.min(len - 1, cur() + d))); } };
+                const withItem = (fn) => { const it = displayedItems[cur()]; it && fn(it); };
+                const action = {
+                    j: () => move(1),
+                    k: () => move(-1),
+                    o: () => withItem(it => it.link && window.open(it.link, "_blank", "noopener")),
+                    m: () => withItem(it => toggleMinimize(it.id)),
+                    c: () => withItem(it => copyText(it.link)),
+                    g: () => { setActiveIndex(-1); window.scrollTo({top: 0, behavior: "smooth"}); },
+                    "?": () => setModal("help")
+                }[e.key];
+                action && action();
             };
             window.addEventListener("keydown", onKey);
             return () => window.removeEventListener("keydown", onKey);
@@ -657,10 +390,8 @@
 
         // --- Dynamic Title Update ---
         useEffect(() => {
-            const prefix =
-                PARAMS.itemId ? allItems[0]?.subject || "Loading Item..." :
-                PARAMS.folder ? `${PARAMS.folder.split('/').filter(Boolean).pop() || PARAMS.folder}${PARAMS.unread ? " (Unread)" : ""}` :
-                "";
+            const prefix = PARAMS.itemId ? (allItems[0]?.subject || "Loading Item...")
+                : PARAMS.folder ? `${PARAMS.folder.split('/').filter(Boolean).pop() || PARAMS.folder}${PARAMS.unread ? " (Unread)" : ""}` : "";
             document.title = prefix ? `${prefix} - ${APP_NAME}` : APP_NAME;
         }, [allItems]);
 
@@ -673,11 +404,11 @@
                 <Layout style={{minHeight: "100vh", background: "transparent"}}>
                     <Content className="main-content">
                         <StatsPanel total={allItems.length} read={readItems.size} displayed={displayedItems.length}
-                                    loading={loading && !displayedItems.length} themeMode={themeMode}
-                                    toggleTheme={toggleTheme} screenshotMode={screenshotMode}
-                                    toggleScreenshotMode={toggleScreenshotMode} cardMode={cardMode}
-                                    toggleCardMode={toggleCardMode} showStats={showStats}
-                                    openModal={setModal}/>
+                            loading={loading && !displayedItems.length} themeMode={themeMode} cardMode={cardMode}
+                            screenshotMode={screenshotMode} showStats={showStats} openModal={setModal}
+                            toggleTheme={() => setThemeMode(m => m === "light" ? "dark" : "light")}
+                            toggleScreenshotMode={() => setScreenshotMode(m => !m)}
+                            toggleCardMode={() => setCardMode(m => m === "standard" ? "compact" : "standard")}/>
                         <FolderTreeModal open={modal === "folder"} onClose={closeModal} treeData={folderTreeData}/>
                         <BlockWordsModal open={modal === "block"} onClose={closeModal} blockWords={blockWords} setBlockWords={setBlockWords}/>
                         <HelpModal open={modal === "help"} onClose={closeModal}/>
@@ -694,7 +425,7 @@
                     </Content>
                 </Layout>
                 <FloatButton icon="⚙️" className="stats-toggle-btn" style={{right: 24, bottom: 84}}
-                             onClick={() => setShowStats(!showStats)}/>
+                        onClick={() => setShowStats(!showStats)}/>
                 <FloatButton.BackTop style={{right: 24, bottom: 24}}/>
             </ConfigProvider>
         );
