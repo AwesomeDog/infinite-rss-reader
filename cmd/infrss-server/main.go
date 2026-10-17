@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,7 +22,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	serverassets "github.com/AwesomeDog/infinite-rss-reader/embed"
@@ -29,6 +30,13 @@ import (
 )
 
 const maxFeedSize, feedRequestTimeout = 10 << 20, 30 * time.Second
+
+// Hard ceiling for a single batch. http.Client.Timeout does not cover feed
+// parsing (nor every pathological transport state), so without this the whole
+// serial batch loop can be stalled forever by one hung source.
+const batchDeadline = feedRequestTimeout + 15*time.Second
+
+var errBatchDeadline = errors.New("batch deadline exceeded; feed skipped this round")
 
 var version = "dev"
 var feedOrder = make(map[string]int)
@@ -336,24 +344,58 @@ func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client, batchSize int, 
 	queue := append([]Feed(nil), feeds...)
 	rand.Shuffle(len(queue), func(i, j int) { queue[i], queue[j] = queue[j], queue[i] })
 
+	type result struct {
+		index  int
+		parsed *gofeed.Feed
+		err    error
+	}
+
 	for start := 0; start < len(queue); start += batchSize {
 		end := min(start+batchSize, len(queue))
 		batch := queue[start:end]
 		parsed, errs := make([]*gofeed.Feed, len(batch)), make([]error, len(batch))
+		for i := range errs {
+			errs[i] = errBatchDeadline // overwritten by whatever reports back in time
+		}
 
-		var batchWG sync.WaitGroup
-		batchWG.Add(len(batch))
+		// Buffered with one slot per feed: a straggler can always deliver its
+		// result and exit instead of blocking forever, and it never touches the
+		// slices this goroutine reads after the deadline (no data race).
+		results := make(chan result, len(batch))
+		ctx, cancel := context.WithTimeout(context.Background(), batchDeadline)
 		for i, feed := range batch {
 			go func(i int, feed Feed) {
-				defer batchWG.Done()
-				parsed[i], errs[i] = downloadFeed(client, feed.URL)
+				feedData, err := downloadFeed(ctx, client, feed.URL)
+				results <- result{index: i, parsed: feedData, err: err}
 			}(i, feed)
 		}
-		batchWG.Wait()
+
+	collect:
+		for pending := len(batch); pending > 0; pending-- {
+			select {
+			case r := <-results:
+				parsed[r.index], errs[r.index] = r.parsed, r.err
+			case <-ctx.Done():
+				log.Printf("rss batch deadline exceeded batch=%d-%d pending=%d", start, end-1, pending)
+				for draining := true; draining; { // keep whatever already arrived
+					select {
+					case r := <-results:
+						parsed[r.index], errs[r.index] = r.parsed, r.err
+					default:
+						draining = false
+					}
+				}
+				break collect
+			}
+		}
+		cancel() // unblock in-flight requests of any straggler we gave up on
 
 		for i, feed := range batch {
 			if errs[i] != nil {
 				log.Printf("rss err url=%q error=%q", feed.URL, errs[i])
+				continue
+			}
+			if parsed[i] == nil {
 				continue
 			}
 			now := time.Now().UTC()
@@ -374,8 +416,13 @@ func refreshFeeds(db *sql.DB, feeds []Feed, client *http.Client, batchSize int, 
 	}
 }
 
-func downloadFeed(client *http.Client, feedURL string) (*gofeed.Feed, error) {
-	response, err := client.Get(feedURL)
+func downloadFeed(ctx context.Context, client *http.Client, feedURL string) (*gofeed.Feed, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
+	if err != nil {
+		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
+		return nil, err
+	}
+	response, err := client.Do(request)
 	if err != nil {
 		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
 		return nil, err
