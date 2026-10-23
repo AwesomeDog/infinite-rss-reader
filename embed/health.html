@@ -28,14 +28,14 @@
 <div id="root"></div>
 <script type="text/babel">
     const {Alert, Button, ConfigProvider, Statistic, Table, Tag, Typography, theme} = antd;
-    const {Text, Title} = Typography;
+    const {Link, Text, Title} = Typography;
     const rank = {error: 0, pending: 1, healthy: 2};
     const formatTime = value => value ? value.slice(0, 19).replaceAll("/", "-") : "-";
     const statusTag = state => state === "healthy" ? <Tag color="success">Healthy</Tag> :
         state === "error" ? <Tag color="error">Needs attention</Tag> : <Tag>Waiting</Tag>;
 
     const columns = [
-        {title: "Feed", render: (_, item) => <><Text strong>{item.title}</Text><Text type="secondary" ellipsis={{tooltip: item.url}}>{item.url}</Text></>},
+        {title: "Feed", render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
         {title: "Folder", dataIndex: "folderPath", responsive: ["md"]},
         {title: "Status", dataIndex: "state", width: 130, render: statusTag},
         {title: "Failures (24h)", dataIndex: "failures24h", width: 120, responsive: ["md"]},
