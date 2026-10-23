@@ -419,9 +419,11 @@
                             cardMode={cardMode} isRead={readItems.has(item.id)} blockWordList={blockWordList}/>}/>
                         <div ref={sentinelRef} style={{height: 20, marginBottom: 20}}/>
                         {loading && displayedItems.length > 0 && <Spin style={{marginTop: 24}}/>}
-                        {!hasMore && displayedItems.length > 0 &&
-                            <div style={{textAlign: "center", margin: "20px 0"}}><Text type="secondary">All items
-                                loaded.</Text></div>}
+                        {!hasMore && displayedItems.length > 0 && <>
+                            <div style={{textAlign: "center", margin: "20px 0"}}>
+                                <Text type="secondary">All items loaded.</Text></div>
+                            <div aria-hidden="true" style={{height: PARAMS.itemId ? 0 : "100vh"}}/>{/* Spacer: lets the last item scroll past to be marked read */}
+                        </>}
                     </Content>
                 </Layout>
                 <FloatButton icon="⚙️" className="stats-toggle-btn" style={{right: 24, bottom: 84}}
