@@ -31,6 +31,8 @@ import (
 
 const maxFeedSize, feedRequestTimeout = 10 << 20, 30 * time.Second
 
+const feedUserAgent = "curl/8.7.1"
+
 // Hard ceiling for a single batch. http.Client.Timeout does not cover feed
 // parsing (nor every pathological transport state), so without this the whole
 // serial batch loop can be stalled forever by one hung source.
@@ -422,6 +424,7 @@ func downloadFeed(ctx context.Context, client *http.Client, feedURL string) (*go
 		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
 		return nil, err
 	}
+	request.Header.Set("User-Agent", feedUserAgent)
 	response, err := client.Do(request)
 	if err != nil {
 		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
