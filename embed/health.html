@@ -33,15 +33,17 @@
     const formatTime = value => value ? value.slice(0, 19).replaceAll("/", "-") : "-";
     const statusTag = state => state === "healthy" ? <Tag color="success">Healthy</Tag> :
         state === "error" ? <Tag color="error">Needs attention</Tag> : <Tag>Waiting</Tag>;
+    const sorter = key => (a, b) => typeof a[key] === "number" ? a[key] - b[key] :
+        String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, {numeric: true});
 
     const columns = [
-        {title: "Feed", render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
-        {title: "Folder", dataIndex: "folderPath", responsive: ["md"]},
-        {title: "Status", dataIndex: "state", width: 130, render: statusTag},
-        {title: "Entries", dataIndex: "entries", width: 100, responsive: ["md"]},
-        {title: "Failures (24h)", dataIndex: "failures24h", width: 120, responsive: ["md"]},
-        {title: "Last checked", dataIndex: "lastAttempt", width: 180, responsive: ["lg"], render: formatTime},
-        {title: "Last successful", dataIndex: "lastSuccess", width: 180, responsive: ["xl"], render: formatTime},
+        {title: "Feed", sorter: sorter("title"), render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
+        {title: "Folder", dataIndex: "folderPath", sorter: sorter("folderPath"), responsive: ["md"]},
+        {title: "Status", dataIndex: "state", width: 130, sorter: (a, b) => rank[a.state] - rank[b.state], render: statusTag},
+        {title: "Entries", dataIndex: "entries", width: 100, sorter: sorter("entries"), responsive: ["md"]},
+        {title: "Failures (24h)", dataIndex: "failures24h", width: 120, sorter: sorter("failures24h"), responsive: ["md"]},
+        {title: "Last checked", dataIndex: "lastAttempt", width: 180, sorter: sorter("lastAttempt"), responsive: ["lg"], render: formatTime},
+        {title: "Last successful", dataIndex: "lastSuccess", width: 180, sorter: sorter("lastSuccess"), responsive: ["xl"], render: formatTime},
         {title: "Details", dataIndex: "error", responsive: ["md"], render: value => value ? <Text type="danger">{value}</Text> : "-"},
     ];
 
