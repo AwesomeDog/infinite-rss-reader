@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,10 +22,11 @@ type feedHealth struct {
 	LastAttempt string `json:"lastAttempt"`
 	LastSuccess string `json:"lastSuccess"`
 	Failures24h int    `json:"failures24h"`
+	Entries     int    `json:"entries"`
 	Error       string `json:"error"`
 }
 
-func registerHealthRoutes(mux *http.ServeMux, feeds []Feed, logDir string) {
+func registerHealthRoutes(mux *http.ServeMux, db *sql.DB, feeds []Feed, logDir string) {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write(serverassets.HealthHTML)
@@ -37,8 +39,35 @@ func registerHealthRoutes(mux *http.ServeMux, feeds []Feed, logDir string) {
 			sendJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "error": err.Error()})
 			return
 		}
+		counts, err := feedEntryCounts(db)
+		if err != nil {
+			log.Print(err)
+			sendJSON(w, http.StatusInternalServerError, map[string]any{"status": "error", "error": err.Error()})
+			return
+		}
+		for i := range items {
+			items[i].Entries = counts[items[i].URL]
+		}
 		sendJSON(w, http.StatusOK, map[string]any{"status": "success", "data": items, "summary": summary, "frequency": frequency})
 	})
+}
+
+func feedEntryCounts(db *sql.DB) (map[string]int, error) {
+	rows, err := db.Query(`SELECT feed_url, COUNT(*) FROM feed_entries GROUP BY feed_url`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := make(map[string]int)
+	for rows.Next() {
+		var url string
+		var count int
+		if err := rows.Scan(&url, &count); err != nil {
+			return nil, err
+		}
+		counts[url] = count
+	}
+	return counts, rows.Err()
 }
 
 func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, map[string]int, error) {

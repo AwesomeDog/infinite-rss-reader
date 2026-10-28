@@ -38,6 +38,7 @@
         {title: "Feed", render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
         {title: "Folder", dataIndex: "folderPath", responsive: ["md"]},
         {title: "Status", dataIndex: "state", width: 130, render: statusTag},
+        {title: "Entries", dataIndex: "entries", width: 100, responsive: ["md"]},
         {title: "Failures (24h)", dataIndex: "failures24h", width: 120, responsive: ["md"]},
         {title: "Last checked", dataIndex: "lastAttempt", width: 180, responsive: ["lg"], render: formatTime},
         {title: "Last successful", dataIndex: "lastSuccess", width: 180, responsive: ["xl"], render: formatTime},

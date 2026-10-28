@@ -148,7 +148,7 @@ func routes(db *sql.DB, feeds []Feed, logDir string) http.Handler {
 	}
 	mux.HandleFunc("GET /{$}", page)
 	mux.HandleFunc("GET /index.html", page)
-	registerHealthRoutes(mux, feeds, logDir)
+	registerHealthRoutes(mux, db, feeds, logDir)
 
 	mux.Handle("GET /api/rss/unread", apiHandler(func(r *http.Request) (any, error) {
 		items, err := queryItems(db, "WHERE read_at IS NULL")
