@@ -21,6 +21,7 @@ go build -o bin/infrss-server ./cmd/infrss-server
 | `--opml` | none | Thunderbird OPML file; required |
 | `--listen` | `127.0.0.1:7655` | HTTP listen address |
 | `--refresh` | `100m` | Feed refresh interval; must be positive |
+| `--max-db-mb` | `0` | Rotate the database at startup when it exceeds this many MiB; `0` disables |
 | `--normalize-opml` | none | Normalize an OPML file for clean git diffs; writes to stdout and exits |
 | `--version` | `false` | Print the build version and exit |
 
@@ -60,7 +61,7 @@ The server starts in this order:
 
 1. Parse and validate flags.
 2. Create the state and log directories and open a new log file.
-3. Open `infrss-server.db` in the state directory and create the schema.
+3. Rotate `infrss-server.db` if it exceeds `--max-db-mb`, then open it and create the schema.
 4. Parse the OPML file.
 5. Bind the HTTP listener.
 6. Start the initial feed refresh in the background.
@@ -136,6 +137,8 @@ Link normalization removes the fragment and lowercases the scheme and host. `con
 The database contains one `feed_entries` table. It stores the feed URL, folder path, source ID, entry key, content hash, item fields, timestamps, and read state.
 
 `read_at IS NULL` means unread. A non-null value is the Unix time when the item was marked read. Indexes cover unread items and folder queries. SQLite uses a 5-second busy timeout and one open connection.
+
+With `--max-db-mb N`, a database larger than N MiB is renamed to `infrss-server-YYYYMMDDTHHMMSS.db` at startup and replaced with an empty one, so the active database cannot grow without bound. Read state survives: the `read_at` values are snapshotted before the rename and re-applied to matching `(feed_url, entry_key)` rows as feeds are fetched again. On later boots the snapshot comes from the newest archive, so items that reappear keep their read state. Archives are never deleted automatically.
 
 The OPML file controls only which feeds are fetched during the current process. Removing a feed from OPML does not delete its stored items. The server does not reconcile subscriptions, migrate old schemas, or rewrite legacy rows. A schema change requires a fresh `infrss-server.db` in the state directory.
 
