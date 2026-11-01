@@ -43,6 +43,9 @@ var errBatchDeadline = errors.New("batch deadline exceeded; feed skipped this ro
 var version = "dev"
 var feedOrder = make(map[string]int)
 
+// read_at snapshot keyed by feed_url+"\x00"+entry_key, carried over from the archived database.
+var readHistory map[string]int64
+
 type Feed struct{ URL, FolderPath, Title string }
 
 type outline struct {
@@ -85,12 +88,15 @@ const upsertSQL = `INSERT INTO feed_entries (feed_url, folder_path, source_id, e
  published_at=CASE WHEN feed_entries.content_hash<>excluded.content_hash THEN excluded.published_at ELSE feed_entries.published_at END,
  content_hash=excluded.content_hash, title=excluded.title, author_name=excluded.author_name, permalink=excluded.permalink, content_html=excluded.content_html`
 
+const backfillSQL = `UPDATE feed_entries SET read_at=? WHERE feed_url=? AND entry_key=? AND read_at IS NULL`
+
 func main() {
 	opmlPath := flag.String("opml", "", "Thunderbird OPML file (required)")
 	listen := flag.String("listen", "127.0.0.1:7655", "HTTP listen address")
 	interval := flag.Duration("refresh", 100*time.Minute, "feed refresh interval")
 	batchSize := flag.Int("batch-size", 10, "feeds per fetch batch")
 	batchGap := flag.Duration("batch-gap", 10*time.Second, "delay between fetch batches")
+	maxDBMB := flag.Int("max-db-mb", 0, "rotate the database at startup when it exceeds this many MiB (0 disables)")
 	normalizePath := flag.String("normalize-opml", "",
 		"normalize an OPML file for clean git diffs; writes to stdout and exits")
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -122,8 +128,21 @@ func main() {
 	logFile := must(setupLogging(stateDir))
 	defer logFile.Close()
 
-	db := must(openDB(filepath.Join(stateDir, "infrss-server.db")))
+	dbPath := filepath.Join(stateDir, "infrss-server.db")
+	archive := must(rotateDB(dbPath, *maxDBMB)) // steps 1-3: snapshot, close, rename
+	db := must(openDB(dbPath))                  // step 4: fresh database, schema + both indexes
 	defer db.Close()
+	if archive != "" { // step 5: one log line, then continue normal startup
+		log.Printf("rotated database to %s (%d read entries carried over)", archive, len(readHistory))
+	}
+	if readHistory == nil { // no rotation this boot: take the map from the latest archive instead
+		if latest := latestArchive(stateDir); latest != "" {
+			readHistory = must(loadReadHistory(latest))
+		}
+	}
+	if err := backfillReads(db); err != nil { // d: one-time batch backfill for rows already in the new db
+		log.Fatal(err)
+	}
 	feeds := must(loadFeeds(*opmlPath))
 
 	listener := must(net.Listen("tcp", *listen))
@@ -278,6 +297,75 @@ func openDB(filename string) (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+func rotateDB(path string, maxMB int) (string, error) {
+	if maxMB <= 0 {
+		return "", nil
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Size() <= int64(maxMB)<<20 {
+		return "", nil
+	}
+	snapshot, err := loadReadHistory(path) // 1. snapshot read entries; 2. database closed on return
+	if err != nil {
+		return "", err
+	}
+	archive := strings.TrimSuffix(path, ".db") + "-" + time.Now().Format("20060102T150405") + ".db"
+	if err := os.Rename(path, archive); err != nil { // 3. rename
+		return "", err
+	}
+	readHistory = snapshot // a: keep the snapshot for backfilling
+	return archive, nil
+}
+
+func latestArchive(stateDir string) string {
+	matches, _ := filepath.Glob(filepath.Join(stateDir, "infrss-server-*.db"))
+	if len(matches) == 0 {
+		return ""
+	}
+	return slices.Max(matches) // timestamped names sort chronologically
+}
+
+func loadReadHistory(path string) (map[string]int64, error) {
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.Query(`SELECT feed_url, entry_key, read_at FROM feed_entries WHERE read_at IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	history := make(map[string]int64)
+	for rows.Next() {
+		var feedURL, entryKey string
+		var readAt int64
+		if err := rows.Scan(&feedURL, &entryKey, &readAt); err != nil {
+			return nil, err
+		}
+		history[feedURL+"\x00"+entryKey] = readAt
+	}
+	return history, rows.Err()
+}
+
+func backfillReads(db *sql.DB) error {
+	if len(readHistory) == 0 {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for key, readAt := range readHistory {
+		feedURL, entryKey, _ := strings.Cut(key, "\x00")
+		if _, err := tx.Exec(backfillSQL, readAt, feedURL, entryKey); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func queryItems(db *sql.DB, where string, args ...any) ([]apiItem, error) {
@@ -478,6 +566,9 @@ func storeItem(db *sql.DB, feed Feed, item *gofeed.Item, now time.Time) error {
 	}
 	_, err = db.Exec(upsertSQL, feed.URL, feed.FolderPath, sql.NullString{String: sourceID, Valid: sourceID != ""}, key,
 		hash, title, author, link, body, published, now.Unix())
+	if readAt, ok := readHistory[feed.URL+"\x00"+key]; err == nil && ok { // c: backfill read_at right after insert
+		_, err = db.Exec(backfillSQL, readAt, feed.URL, key)
+	}
 	return err
 }
 
