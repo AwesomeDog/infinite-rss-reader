@@ -38,7 +38,7 @@
 
     const columns = [
         {title: "Feed", sorter: sorter("title"), render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
-        {title: "Folder", dataIndex: "folderPath", sorter: sorter("folderPath"), responsive: ["md"]},
+        {title: "Folder", dataIndex: "folderPath", sorter: sorter("folderPath"), responsive: ["md"], render: value => value && <Link href={`/?folder=${encodeURIComponent(value)}`} target="_blank" rel="noreferrer">{value}</Link>},
         {title: "Status", dataIndex: "state", width: 130, sorter: (a, b) => rank[a.state] - rank[b.state], render: statusTag},
         {title: "Entries", dataIndex: "entries", width: 100, sorter: sorter("entries"), responsive: ["md"]},
         {title: "Failures (24h)", dataIndex: "failures24h", width: 120, sorter: sorter("failures24h"), responsive: ["md"]},
@@ -90,7 +90,7 @@
             <main className="page">
                 <header className="header">
                     <div><Title level={3}>Feed Health</Title><Text type="secondary">Current fetch status</Text></div>
-                    <Button href="/">Reader</Button>
+                    <Button href="/" target="_blank" rel="noreferrer">Reader</Button>
                 </header>
                 {error && <Alert type="error" showIcon message={error} style={{marginBottom: 20}}/>}
                 <section className="stats">
