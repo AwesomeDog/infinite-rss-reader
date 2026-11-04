@@ -36,6 +36,28 @@
     const sorter = key => (a, b) => typeof a[key] === "number" ? a[key] - b[key] :
         String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, {numeric: true});
 
+    const exportTime = value => value ? formatTime(value) : "";
+    const exportFields = [
+        ["Feed", "title"], ["URL", "url"], ["Folder", "folderPath"], ["Status", "state"],
+        ["Entries", "entries"], ["Failures (24h)", "failures24h"],
+        ["Last checked", "lastAttempt", exportTime], ["Last successful", "lastSuccess", exportTime], ["Details", "error"],
+    ];
+    const csvCell = value => {
+        let s = String(value ?? "");
+        if (/^[=+@\t\r]|^-[\d(]/.test(s)) s = "'" + s; // keep Excel from treating text as a formula
+        return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+    };
+    const exportCSV = data => {
+        const lines = [exportFields.map(([header]) => csvCell(header)).join(","),
+            ...data.map(row => exportFields.map(([, key, format]) => csvCell(format ? format(row[key]) : row[key])).join(","))];
+        const url = URL.createObjectURL(new Blob(["\uFEFF" + lines.join("\r\n")], {type: "text/csv;charset=utf-8"}));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `feed-health-${dayjs().format("YYYY-MM-DD")}.csv`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
     const columns = [
         {title: "Feed", sorter: sorter("title"), render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
         {title: "Folder", dataIndex: "folderPath", sorter: sorter("folderPath"), responsive: ["md"], render: value => value && <Link href={`/?folder=${encodeURIComponent(value)}`} target="_blank" rel="noreferrer">{value}</Link>},
@@ -90,7 +112,10 @@
             <main className="page">
                 <header className="header">
                     <div><Title level={3}>Feed Health</Title><Text type="secondary">Current fetch status</Text></div>
-                    <Button href="/" target="_blank" rel="noreferrer">Reader</Button>
+                    <div style={{display: "flex", gap: 8}}>
+                        <Button onClick={() => exportCSV(rows)} disabled={!rows.length}>Export CSV</Button>
+                        <Button href="/" target="_blank" rel="noreferrer">Reader</Button>
+                    </div>
                 </header>
                 {error && <Alert type="error" showIcon message={error} style={{marginBottom: 20}}/>}
                 <section className="stats">
