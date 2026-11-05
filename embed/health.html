@@ -34,8 +34,12 @@
     const formatTime = value => value ? value.slice(0, 19).replaceAll("/", "-") : "-";
     const statusTag = state => state === "healthy" ? <Tag color="success">Healthy</Tag> :
         state === "error" ? <Tag color="error">Needs attention</Tag> : <Tag>Waiting</Tag>;
-    const sorter = key => (a, b) => typeof a[key] === "number" ? a[key] - b[key] :
-        String(a[key] ?? "").localeCompare(String(b[key] ?? ""), undefined, {numeric: true});
+    const sorter = key => (a, b) => {
+        const x = a[key], y = b[key];
+        if (typeof x === "number" && typeof y === "number") return x - y;
+        const xs = String(x ?? "").toLowerCase(), ys = String(y ?? "").toLowerCase();
+        return xs < ys ? -1 : xs > ys ? 1 : 0;
+    };
 
     const exportTime = value => value ? formatTime(value) : "";
     const exportFields = [
