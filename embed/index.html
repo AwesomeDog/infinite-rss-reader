@@ -127,16 +127,17 @@
         return walk(root);
     };
 
-    const FolderTreeModal = ({open, onClose, treeData}) => (
-        <Modal title="📁 Folder Navigation" open={open} onCancel={onClose} footer={null}>
+    const FolderTreeModal = ({open, onClose, treeData}) => { const [expandAll, setExpandAll] = useState(true); return (
+        <Modal title={<Space>📁 Folder Navigation<Button size="small" onClick={() => setExpandAll(v => !v)}>{expandAll ? "Collapse All" : "Expand All"}</Button></Space>} open={open} onCancel={onClose} footer={null}>
             {treeData.length ? (
-                <DirectoryTree defaultExpandAll treeData={treeData} style={{overflow: 'auto'}}
+                <DirectoryTree key={String(expandAll)} defaultExpandAll={expandAll} treeData={treeData} style={{overflow: 'auto'}}
                     onSelect={(_, {node}) => node.fullPath && window.open(`/?unread=true&folder=${encodeURIComponent(node.fullPath)}`, '_blank')}
                     titleRender={(node) => <span>{node.title}{node.count > 0 &&
                     <Tag color="blue" style={{marginLeft: 8}}>{node.count}</Tag>}</span>}/>
             ) : <Text type="secondary">No folder data available</Text>}
         </Modal>
     );
+    };
 
     const StatsPanel = ({total, read, displayed, loading, themeMode, toggleTheme, screenshotMode, toggleScreenshotMode, cardMode, toggleCardMode, showStats, openModal}) => (
         <Card className={`stats-panel ${showStats ? "visible" : ""}`} size="small" title="Statistics"
