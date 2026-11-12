@@ -29,7 +29,9 @@
         .rss-item .ant-card-head-title { white-space: normal !important }
         .rss-item .ant-card-head-title, .rss-item .ant-card-body,
         .rss-item-content table, .rss-item-content th, .rss-item-content td { word-wrap: break-word; word-break: break-word }
-        .rss-item-content { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch }
+        /* overflow-y is explicit: `overflow-x: auto` alone would make it `auto` too, and the html-to-image
+           clone (fixed heights, sub-pixel narrower width) could then paint a vertical scrollbar. */
+        .rss-item-content { width: 100%; overflow-x: auto; overflow-y: hidden }
         .rss-item-content table { max-width: none; border-collapse: collapse }
         .rss-item-body { position: relative; overflow: hidden; transition: max-height .3s ease }
         .rss-item-body.minimized { max-height: 120px }
@@ -235,8 +237,19 @@
             const card = itemRef.current?.querySelector(".ant-card");
             const target = screenshotMode ? card : contentRef.current;
             if (!target) return message.error("No content to screenshot.");
+            // html-to-image sizes its canvas from clientWidth/clientHeight (pixel-snapped integers) while it
+            // copies every computed width/height onto the clone as fixed px and keeps `max-width: 100%` as a
+            // percentage. With a fractional layout width (e.g. 748.4px) the canvas is only 748px, the clone
+            // gets clamped to it, text re-wraps inside height-frozen boxes and the overflow:auto body grows a
+            // scrollbar that never existed on the page. Measure sub-pixel, round the canvas UP and lay the
+            // clone out at the exact page size so it reproduces the page layout 1:1.
+            const {width, height} = target.getBoundingClientRect();
             try {
-                const blob = await htmlToImage.toBlob(target, {...SHOT_OPTS, backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff'});
+                const blob = await htmlToImage.toBlob(target, {
+                    ...SHOT_OPTS, width: Math.ceil(width), height: Math.ceil(height),
+                    style: {width: `${width}px`, height: `${height}px`},
+                    backgroundColor: card ? getComputedStyle(card).backgroundColor : '#ffffff'
+                });
                 await navigator.clipboard.write([new ClipboardItem({"image/png": blob})]);
                 message.success("Screenshot copied!");
             } catch (e) {
