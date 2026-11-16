@@ -43,7 +43,7 @@
 
     const exportTime = value => value ? formatTime(value) : "";
     const exportFields = [
-        ["Feed", "title"], ["URL", "url"], ["Folder", "folderPath"], ["Status", "state"],
+        ["Feed", "title"], ["URL", "url"], ["Original URL", "siteUrl"], ["Folder", "folderPath"], ["Status", "state"],
         ["Entries", "entries"], ["Failures (24h)", "failures24h"],
         ["Last checked", "lastAttempt", exportTime], ["Last successful", "lastSuccess", exportTime], ["Details", "error"],
     ];
@@ -64,7 +64,7 @@
     };
 
     const columns = [
-        {title: "Feed", sorter: sorter("title"), render: (_, item) => <><Text strong>{item.title}</Text><Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>{item.url}</Link></>},
+        {title: "Feed", sorter: sorter("title"), render: (_, item) => <><Text strong>{item.title}</Text>{" "}<Link href={item.url} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.url}}>Feed</Link>{item.siteUrl && <>{" "}<Link href={item.siteUrl} target="_blank" rel="noreferrer" ellipsis={{tooltip: item.siteUrl}}>Original</Link></>}</>},
         {title: "Folder", dataIndex: "folderPath", sorter: sorter("folderPath"), responsive: ["md"], render: value => value && <Link href={`/?folder=${encodeURIComponent(value)}`} target="_blank" rel="noreferrer">{value}</Link>},
         {title: "Status", dataIndex: "state", width: 130, sorter: (a, b) => rank[a.state] - rank[b.state], render: statusTag},
         {title: "Entries", dataIndex: "entries", width: 100, sorter: sorter("entries"), responsive: ["md"]},

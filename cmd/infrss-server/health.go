@@ -17,6 +17,7 @@ import (
 type feedHealth struct {
 	Title       string `json:"title"`
 	URL         string `json:"url"`
+	SiteURL     string `json:"siteUrl"`
 	FolderPath  string `json:"folderPath"`
 	State       string `json:"state"`
 	LastAttempt string `json:"lastAttempt"`
@@ -79,7 +80,7 @@ func readFeedHealth(feeds []Feed, logDir string) ([]feedHealth, map[string]int, 
 		if title == "" {
 			title = feed.URL
 		}
-		items[i] = feedHealth{Title: title, URL: feed.URL, FolderPath: feed.FolderPath, State: "pending"}
+		items[i] = feedHealth{Title: title, URL: feed.URL, SiteURL: feed.SiteURL, FolderPath: feed.FolderPath, State: "pending"}
 		byURL[feed.URL] = i
 	}
 

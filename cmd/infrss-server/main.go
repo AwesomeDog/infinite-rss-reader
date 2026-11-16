@@ -46,12 +46,13 @@ var feedOrder = make(map[string]int)
 // read_at snapshot keyed by feed_url+"\x00"+entry_key, carried over from the archived database.
 var readHistory map[string]int64
 
-type Feed struct{ URL, FolderPath, Title string }
+type Feed struct{ URL, SiteURL, FolderPath, Title string }
 
 type outline struct {
 	Text     string    `xml:"text,attr"`
 	Title    string    `xml:"title,attr"`
 	XMLURL   string    `xml:"xmlUrl,attr"`
+	HTMLURL  string    `xml:"htmlUrl,attr"`
 	Children []outline `xml:"outline"`
 }
 
@@ -421,7 +422,7 @@ func loadFeeds(filename string) ([]Feed, error) {
 			} else {
 				seen[feedURL] = true
 				feedOrder[feedURL] = len(feeds) + 1
-				feeds = append(feeds, Feed{URL: feedURL, FolderPath: "/" + strings.TrimPrefix(path, "/"), Title: name})
+				feeds = append(feeds, Feed{URL: feedURL, SiteURL: strings.TrimSpace(node.HTMLURL), FolderPath: "/" + strings.TrimPrefix(path, "/"), Title: name})
 			}
 			walk(node.Children, path)
 		}
