@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	serverassets "github.com/AwesomeDog/infinite-rss-reader/embed"
@@ -31,7 +32,8 @@ import (
 
 const maxFeedSize, feedRequestTimeout = 10 << 20, 30 * time.Second
 
-const feedUserAgent = "curl/8.7.1"
+var feedUserAgents = []string{"curl/8.7.1", "Wget/1.21.4"}
+var learnedUserAgents sync.Map // feed URL -> index of the UA that got past a 403
 
 // Hard ceiling for a single batch. http.Client.Timeout does not cover feed
 // parsing (nor every pathological transport state), so without this the whole
@@ -513,8 +515,18 @@ func downloadFeed(ctx context.Context, client *http.Client, feedURL string) (*go
 		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
 		return nil, err
 	}
-	request.Header.Set("User-Agent", feedUserAgent)
+	learned, _ := learnedUserAgents.Load(feedURL)
+	i, _ := learned.(int) // nothing learned yet -> 0, the first UA
+	request.Header.Set("User-Agent", feedUserAgents[i])
 	response, err := client.Do(request)
+	if err == nil && response.StatusCode == http.StatusForbidden { // 403: retry once with the next UA
+		response.Body.Close()
+		i = (i + 1) % len(feedUserAgents)
+		request.Header.Set("User-Agent", feedUserAgents[i])
+		if response, err = client.Do(request); err == nil && response.StatusCode/100 == 2 {
+			learnedUserAgents.Store(feedURL, i)
+		}
+	}
 	if err != nil {
 		log.Printf("rss method=GET url=%q status=0 error=%q", feedURL, err)
 		return nil, err
